@@ -35,10 +35,11 @@ export function updateSettings(payload) {
   })
 }
 
-export function sendTestTicket(payload) {
+export function sendTestTicket(payload, signal) {
   return request('/webhook/intercom', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal,
   })
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Send, CheckCircle2, AlertTriangle, Loader } from 'lucide-react'
+import { X, Send, CheckCircle2, AlertTriangle, Loader, Clock } from 'lucide-react'
 import { sendTestTicket } from '../api'
 
 const QUICK_FILL = [
@@ -19,27 +19,40 @@ export default function TestPanel({ onClose, onTicketSent }) {
   const [email,   setEmail]   = useState('')
   const [name,    setName]    = useState('')
   const [message, setMessage] = useState('')
-  const [sending, setSending] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [error,   setError]   = useState(null)
+  const [sending,   setSending]   = useState(false)
+  const [success,   setSuccess]   = useState(false)
+  const [timedOut,  setTimedOut]  = useState(false)
+  const [error,     setError]     = useState(null)
 
   async function submit(e) {
     e.preventDefault()
     if (!email.trim() || !message.trim()) return
     setSending(true)
     setError(null)
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 30_000)
+
     try {
       await sendTestTicket({
         ticket_id:      `test_${Date.now()}`,
         customer_email: email.trim(),
         customer_name:  name.trim() || undefined,
         message:        message.trim(),
-      })
+      }, controller.signal)
+      clearTimeout(timer)
       setSuccess(true)
       onTicketSent?.()
       setTimeout(onClose, 2000)
     } catch (err) {
-      setError(err.message || 'Request failed — is the backend running?')
+      clearTimeout(timer)
+      if (err.name === 'AbortError') {
+        setTimedOut(true)
+        onTicketSent?.()
+        setTimeout(onClose, 3500)
+      } else {
+        setError(err.message || 'Request failed — is the backend running?')
+      }
     } finally {
       setSending(false)
     }
@@ -80,23 +93,36 @@ export default function TestPanel({ onClose, onTicketSent }) {
         </div>
 
         <div className="px-5 py-4">
-          {/* Success state */}
-          {success ? (
-            <div
-              className="flex flex-col items-center justify-center py-8 gap-3 fade-in"
-            >
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: '#10B98118' }}
-              >
-                <CheckCircle2 size={24} color="#10B981" />
-              </div>
-              <p className="text-sm font-semibold" style={{ color: '#10B981' }}>
-                Ticket processed!
-              </p>
-              <p className="text-xs" style={{ color: '#475569' }}>
-                Check your dashboard.
-              </p>
+          {/* Success / timeout state */}
+          {success || timedOut ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3 fade-in">
+              {timedOut ? (
+                <>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{ background: '#6366F118' }}>
+                    <Clock size={24} color="#6366F1" />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: '#6366F1' }}>
+                    Processing…
+                  </p>
+                  <p className="text-xs text-center" style={{ color: '#475569' }}>
+                    Check your dashboard in a moment.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{ background: '#10B98118' }}>
+                    <CheckCircle2 size={24} color="#10B981" />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: '#10B981' }}>
+                    Ticket processed!
+                  </p>
+                  <p className="text-xs" style={{ color: '#475569' }}>
+                    Check your dashboard.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <form onSubmit={submit} className="space-y-4">
