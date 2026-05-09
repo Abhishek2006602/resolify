@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { Clock, Zap, X, FlaskConical } from 'lucide-react'
+import { Clock, Zap, X, Send } from 'lucide-react'
 import TopBar from '../components/TopBar'
 import MetricsRow from '../components/MetricsRow'
 import TicketTable from '../components/TicketTable'
@@ -134,19 +134,7 @@ export default function Dashboard() {
                   <span className="w-0.5 h-4 rounded-full" style={{ background: '#6366F1' }} />
                   <h2 className="text-sm font-semibold" style={{ color: '#F1F5F9' }}>Recent Tickets</h2>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium" style={{ color: '#475569' }}>Last 10</span>
-                  <button
-                    onClick={() => setTestOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                    style={{ background: '#6366F115', color: '#818CF8', border: '1px solid #6366F125' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#6366F125'; e.currentTarget.style.borderColor = '#6366F140' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#6366F115'; e.currentTarget.style.borderColor = '#6366F125' }}
-                  >
-                    <FlaskConical size={12} />
-                    Test ticket
-                  </button>
-                </div>
+                <span className="text-xs font-medium" style={{ color: '#475569' }}>Last 10</span>
               </div>
               <TicketTable
                 tickets={tickets.slice(0, 10)}
@@ -273,6 +261,22 @@ export default function Dashboard() {
       </main>
 
       <TicketDrawer ticket={selected} onClose={() => setSelected(null)} />
+
+      {/* Floating send button */}
+      <button
+        onClick={() => setTestOpen(true)}
+        className="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all z-30"
+        style={{
+          background: '#6366F1',
+          color: '#fff',
+          boxShadow: '0 4px 24px #6366F140',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = '#4F46E5'; e.currentTarget.style.boxShadow = '0 4px 32px #6366F160' }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#6366F1'; e.currentTarget.style.boxShadow = '0 4px 24px #6366F140' }}
+      >
+        <Send size={15} />
+        Send Test Ticket
+      </button>
 
       {testOpen && (
         <TestPanel
