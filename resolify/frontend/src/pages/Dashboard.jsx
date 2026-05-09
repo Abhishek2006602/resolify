@@ -86,7 +86,7 @@ export default function Dashboard() {
 
   useEffect(() => { fetchTickets() }, [fetchTickets])
   useEffect(() => {
-    const id = setInterval(() => fetchTickets(true), 10000)
+    const id = setInterval(() => fetchTickets(true), 5000)
     return () => clearInterval(id)
   }, [fetchTickets])
 
@@ -137,7 +137,7 @@ export default function Dashboard() {
                 <span className="text-xs font-medium" style={{ color: '#475569' }}>Last 10</span>
               </div>
               <TicketTable
-                tickets={tickets.slice(0, 10)}
+                tickets={[...tickets].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10)}
                 loading={loading}
                 onOpen={setSelected}
               />

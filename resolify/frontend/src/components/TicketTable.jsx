@@ -98,8 +98,9 @@ export default function TicketTable({ tickets, loading, onOpen }) {
   const cols = ['Ticket ID', 'Customer', 'Message', 'Intent', 'Status', 'AI Decision', 'Confidence', 'MRR', 'Time', '']
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: '#1A1D27', border: '1px solid #2A2D3A', overflowX: 'auto' }}>
-      <table className="w-full" style={{ minWidth: '760px' }}>
+    <div className="rounded-xl overflow-hidden" style={{ background: '#1A1D27', border: '1px solid #2A2D3A' }}>
+      <div style={{ overflowX: 'auto' }}>
+      <table className="w-full" style={{ minWidth: '700px' }}>
         <thead style={{ position: 'sticky', top: 56, zIndex: 10, background: '#1A1D27' }}>
           <tr style={{ borderBottom: '1px solid #2A2D3A' }}>
             {cols.map(c => (
@@ -221,6 +222,7 @@ export default function TicketTable({ tickets, loading, onOpen }) {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }
