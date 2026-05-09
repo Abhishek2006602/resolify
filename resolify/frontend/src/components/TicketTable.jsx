@@ -69,7 +69,7 @@ function SkeletonRow() {
   return (
     <tr>
       {[...Array(10)].map((_, i) => (
-        <td key={i} className="px-4 py-3.5">
+        <td key={i} className="px-2 py-3.5">
           <div className="skeleton h-3.5 rounded" style={{ width: `${60 + (i * 17) % 40}%` }} />
         </td>
       ))}
@@ -98,12 +98,12 @@ export default function TicketTable({ tickets, loading, onOpen }) {
   const cols = ['Ticket ID', 'Customer', 'Message', 'Intent', 'Status', 'AI Decision', 'Confidence', 'MRR', 'Time', '']
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: '#1A1D27', border: '1px solid #2A2D3A' }}>
-      <table className="w-full">
+    <div className="rounded-xl overflow-hidden" style={{ background: '#1A1D27', border: '1px solid #2A2D3A', overflowX: 'auto' }}>
+      <table className="w-full" style={{ minWidth: '760px' }}>
         <thead style={{ position: 'sticky', top: 56, zIndex: 10, background: '#1A1D27' }}>
           <tr style={{ borderBottom: '1px solid #2A2D3A' }}>
             {cols.map(c => (
-              <th key={c} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+              <th key={c} className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
                 style={{ color: '#475569' }}>
                 {c}
               </th>
@@ -135,42 +135,42 @@ export default function TicketTable({ tickets, loading, onOpen }) {
                   onClick={() => onOpen(t)}>
 
                   {/* Ticket ID */}
-                  <td className="px-4 py-3.5">
+                  <td className="px-2 py-3.5">
                     <span className="font-mono text-xs font-semibold" style={{ color: '#6366F1' }}>
                       {t.ticket_id}
                     </span>
                   </td>
 
                   {/* Customer */}
-                  <td className="px-4 py-3.5">
-                    <p className="text-sm font-medium" style={{ color: '#F8FAFC' }}>{t.customer_email}</p>
-                    {ctx.company_name && <p className="text-xs" style={{ color: '#94A3B8' }}>{ctx.company_name}</p>}
+                  <td className="px-2 py-3.5" style={{ maxWidth: '140px' }}>
+                    <p className="text-sm font-medium truncate" style={{ color: '#F8FAFC' }} title={t.customer_email}>{t.customer_email}</p>
+                    {ctx.company_name && <p className="text-xs truncate" style={{ color: '#94A3B8' }} title={ctx.company_name}>{ctx.company_name}</p>}
                   </td>
 
                   {/* Message */}
-                  <td className="px-4 py-3.5 max-w-xs">
-                    <span className="text-sm" style={{ color: '#94A3B8' }} title={t.message}>
-                      {t.message.length > 60 ? t.message.slice(0, 60) + '…' : t.message}
+                  <td className="px-2 py-3.5" style={{ maxWidth: '160px' }}>
+                    <span className="text-sm" style={{ color: '#94A3B8', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={t.message}>
+                      {t.message}
                     </span>
                   </td>
 
                   {/* Intent */}
-                  <td className="px-4 py-3.5">
+                  <td className="px-2 py-3.5">
                     <IntentBadge intent={t.intent} />
                   </td>
 
                   {/* Status */}
-                  <td className="px-4 py-3.5">
+                  <td className="px-2 py-3.5">
                     <StatusBadge status={t.status} />
                   </td>
 
                   {/* AI Decision */}
-                  <td className="px-4 py-3.5 whitespace-nowrap">
+                  <td className="px-2 py-3.5 whitespace-nowrap">
                     <AiDecisionBadge status={t.status} escalateImmediately={t.escalate_immediately} />
                   </td>
 
                   {/* Confidence */}
-                  <td className="px-4 py-3.5">
+                  <td className="px-2 py-3.5">
                     {confidence != null ? (
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-2 rounded-full overflow-hidden" style={{ background: '#1e2130' }}>
@@ -193,7 +193,7 @@ export default function TicketTable({ tickets, loading, onOpen }) {
                   </td>
 
                   {/* MRR */}
-                  <td className="px-4 py-3.5 whitespace-nowrap">
+                  <td className="px-2 py-3.5 whitespace-nowrap">
                     <MrrCell
                       mrr={ctx.mrr ?? null}
                       paymentStatus={ctx.payment_status}
@@ -202,12 +202,12 @@ export default function TicketTable({ tickets, loading, onOpen }) {
                   </td>
 
                   {/* Time */}
-                  <td className="px-4 py-3.5">
+                  <td className="px-2 py-3.5">
                     <span className="text-xs tabular-nums" style={{ color: '#94A3B8' }}>{timeAgo(t.created_at)}</span>
                   </td>
 
                   {/* Actions */}
-                  <td className="px-4 py-3.5">
+                  <td className="px-2 py-3.5">
                     <button
                       onClick={e => { e.stopPropagation(); onOpen(t) }}
                       className="w-7 h-7 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-indigo-500/20"

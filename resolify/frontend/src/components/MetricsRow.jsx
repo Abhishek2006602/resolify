@@ -2,16 +2,18 @@ import { Ticket, CheckCircle2, AlertTriangle, Zap, Clock, DollarSign, TrendingUp
 
 function MetricCard({ icon: Icon, iconColor, iconBg, accentColor, label, value, sub, trend, trendUp }) {
   return (
-    <div className="flex items-center justify-between p-5 rounded-xl fade-in flex-shrink-0"
+    <div className="flex items-center justify-between rounded-xl fade-in"
       style={{
         background: '#1A1D27',
         border: '1px solid #2A2D3A',
         borderTop: `2px solid ${accentColor || iconColor}`,
-        minWidth: '190px',
+        padding: '16px',
+        flex: '1 1 160px',
+        minWidth: '140px',
       }}>
-      <div>
+      <div className="min-w-0">
         <p className="text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: '#64748B' }}>{label}</p>
-        <p className="text-3xl font-bold num" style={{ color: '#F8FAFC', lineHeight: 1 }}>{value}</p>
+        <p className="font-bold num" style={{ color: '#F8FAFC', lineHeight: 1, fontSize: 'clamp(20px, 2vw, 28px)' }}>{value}</p>
         {sub && (
           <div className="flex items-center gap-1 mt-2">
             {trend !== undefined && (
@@ -23,9 +25,9 @@ function MetricCard({ icon: Icon, iconColor, iconBg, accentColor, label, value, 
           </div>
         )}
       </div>
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ml-3"
         style={{ background: iconBg }}>
-        <Icon size={18} color={iconColor} />
+        <Icon size={16} color={iconColor} />
       </div>
     </div>
   )
@@ -33,7 +35,7 @@ function MetricCard({ icon: Icon, iconColor, iconBg, accentColor, label, value, 
 
 function SkeletonCard() {
   return (
-    <div className="p-5 rounded-xl flex-shrink-0" style={{ background: '#1A1D27', border: '1px solid #2A2D3A', minWidth: '180px' }}>
+    <div className="rounded-xl" style={{ background: '#1A1D27', border: '1px solid #2A2D3A', padding: '16px', flex: '1 1 160px', minWidth: '140px' }}>
       <div className="skeleton h-3 w-24 mb-3" />
       <div className="skeleton h-7 w-16 mb-2" />
       <div className="skeleton h-3 w-20" />
@@ -53,7 +55,7 @@ function formatTimeSaved(minutes) {
 export default function MetricsRow({ tickets, loading }) {
   if (loading) {
     return (
-      <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+      <div className="flex flex-wrap gap-3">
         {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
       </div>
     )
