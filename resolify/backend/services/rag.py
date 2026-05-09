@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # cache: md5_key -> (chunks, confidence, timestamp)
 _cache: dict[str, tuple[list[str], float, float]] = {}
-CACHE_MAX_SIZE = 100
+CACHE_MAX_SIZE = 20
 CACHE_TTL_SECONDS = 86_400  # 24 hours
 
 SIMILARITY_THRESHOLD = 0.30

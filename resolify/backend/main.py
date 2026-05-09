@@ -9,7 +9,6 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -62,6 +61,8 @@ async def _rag_cache_cleanup() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import gc
+    gc.collect()
     logger.info("Resolify is running")
     print("Resolify is running")
 
@@ -84,13 +85,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Resolify", version="0.2.0", lifespan=lifespan)
 
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
-_origins = ["*"] if _raw_origins == "*" else [o.strip() for o in _raw_origins.split(",")]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,
-    allow_credentials=_raw_origins != "*",
+    allow_origins=[
+        "https://resolify.vercel.app",
+        "https://resolify-r3rqwbe1h-abhishekkamlakar425-9629s-projects.vercel.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
