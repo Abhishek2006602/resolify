@@ -1,16 +1,23 @@
 import logging
-import anthropic
 from config import ANTHROPIC_API_KEY
 
 logger = logging.getLogger(__name__)
 
-_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        import anthropic
+        _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    return _client
 
 
 async def detect_language(text: str) -> str:
     """Returns ISO 639-1 language code. Defaults to 'en' on any failure."""
     try:
-        response = _client.messages.create(
+        response = _get_client().messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=8,
             messages=[{

@@ -1,15 +1,21 @@
 import json
 import logging
-import anthropic
 from config import ANTHROPIC_API_KEY
 from models.schemas import ClassificationResult
 from services.costs import calc_cost_units
 
 logger = logging.getLogger(__name__)
 
-_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-
+_client = None
 _MODEL = "claude-haiku-4-5-20251001"
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        import anthropic
+        _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    return _client
 
 _BASE_PROMPT = """You are a customer support ticket classifier. Analyze the ticket and return ONLY valid JSON with these exact fields:
 
@@ -34,14 +40,15 @@ async def classify_ticket(
     if language != "en":
         system += f"\nNote: This ticket is written in {language}. Classify accordingly."
 
+    import anthropic
     try:
-        response = _client.messages.create(
+        response = _get_client().messages.create(
             model=_MODEL,
             max_tokens=256,
             system=system,
             messages=[{"role": "user", "content": message}],
         )
-    except anthropic.APIError as exc:
+    except anthropic.APIError:
         raise  # let webhook handle queuing
 
     raw = response.content[0].text.strip()

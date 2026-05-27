@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # cache: md5_key -> (chunks, confidence, timestamp)
 _cache: dict[str, tuple[list[str], float, float]] = {}
-CACHE_MAX_SIZE = 20
+CACHE_MAX_SIZE = 0  # 0 = disabled; set >0 to re-enable in-memory cache
 CACHE_TTL_SECONDS = 86_400  # 24 hours
 
 SIMILARITY_THRESHOLD = 0.30
@@ -31,6 +31,8 @@ def _make_key(client_id: Optional[str], query: str) -> str:
 
 
 def clean_expired_cache() -> None:
+    if CACHE_MAX_SIZE == 0:
+        return
     now = time.time()
     expired = [k for k, (_, _, ts) in _cache.items() if now - ts > CACHE_TTL_SECONDS]
     for k in expired:
@@ -94,6 +96,9 @@ async def retrieve(
     query: str, client_id: Optional[str] = None
 ) -> tuple[list[str], float]:
     """Returns (chunks, confidence). confidence = avg cosine similarity of top results."""
+    if CACHE_MAX_SIZE == 0:
+        return await _retrieve_from_vector_db(query, client_id)
+
     clean_expired_cache()
     key = _make_key(client_id, query)
 

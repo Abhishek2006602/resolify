@@ -63,6 +63,7 @@ async def _rag_cache_cleanup() -> None:
 async def lifespan(app: FastAPI):
     import gc
     gc.collect()
+    gc.set_threshold(100, 5, 5)
     logger.info("Resolify is running")
     print("Resolify is running")
 

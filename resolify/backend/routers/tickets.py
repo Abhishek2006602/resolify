@@ -1,5 +1,4 @@
 import logging
-import anthropic
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException
 from services.costs import units_to_cents, check_cost_alert, PLAN_MONTHLY_REVENUE
@@ -8,7 +7,15 @@ from config import ANTHROPIC_API_KEY
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_haiku_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+_haiku_client = None
+
+
+def _get_haiku_client():
+    global _haiku_client
+    if _haiku_client is None:
+        import anthropic
+        _haiku_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    return _haiku_client
 
 
 def _month_start() -> str:
@@ -133,7 +140,7 @@ async def stats_knowledge_gaps():
         topics: list[str] = []
         for row in rows[:10]:
             try:
-                resp = _haiku_client.messages.create(
+                resp = _get_haiku_client().messages.create(
                     model="claude-haiku-4-5-20251001",
                     max_tokens=16,
                     messages=[{

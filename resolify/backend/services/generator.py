@@ -1,15 +1,21 @@
 import logging
-import anthropic
 from config import ANTHROPIC_API_KEY
 from models.schemas import EnrichedContext, GeneratedResponse
 from services.costs import calc_cost_units
 
 logger = logging.getLogger(__name__)
 
-_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-
+_client = None
 _HAIKU  = "claude-haiku-4-5-20251001"
 _SONNET = "claude-sonnet-4-6"
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        import anthropic
+        _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    return _client
 
 
 def _build_system_prompt(context: EnrichedContext, language: str = "en") -> str:
@@ -53,8 +59,9 @@ async def generate_response(
 
     system = _build_system_prompt(context, language)
 
+    import anthropic
     try:
-        response = _client.messages.create(
+        response = _get_client().messages.create(
             model=model,
             max_tokens=300,
             system=system,
