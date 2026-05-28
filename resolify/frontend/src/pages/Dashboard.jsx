@@ -21,22 +21,30 @@ function InfoBanner() {
   if (!visible) return null
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl fade-in"
-      style={{ background: '#6366F110', border: '1px solid #6366F130' }}>
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: '#6366F120' }}>
-        <Zap size={14} color="#6366F1" />
-      </div>
-      <p className="flex-1 text-sm" style={{ color: '#94A3B8' }}>
-        <span className="font-semibold" style={{ color: '#F8FAFC' }}>Resolify</span>{' '}
-        automatically enriches every ticket with customer context, classifies intent, and decides
-        to resolve or escalate — saving your team{' '}
-        <span className="font-semibold" style={{ color: '#6366F1' }}>8 minutes per ticket</span>.
+    <div
+      className="flex items-center gap-3 px-4 fade-in"
+      style={{
+        height: 44,
+        background: 'rgba(88,166,255,0.05)',
+        border: '1px solid rgba(88,166,255,0.12)',
+        borderLeft: '3px solid var(--accent-primary)',
+        borderRadius: 8,
+      }}
+    >
+      <Zap size={13} color="var(--accent-primary)" />
+      <p className="flex-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Resolify</span>{' '}
+        enriches every ticket, classifies intent, and auto-resolves or escalates —{' '}
+        <span className="font-semibold" style={{ color: 'var(--accent-primary)' }}>8 minutes saved per ticket</span>.
       </p>
-      <button onClick={dismiss}
-        className="w-6 h-6 flex items-center justify-center rounded-md flex-shrink-0 hover:bg-white/10 transition-all"
-        style={{ color: '#94A3B8' }}>
-        <X size={14} />
+      <button
+        onClick={dismiss}
+        className="w-5 h-5 flex items-center justify-center rounded flex-shrink-0 transition-all"
+        style={{ color: 'var(--text-muted)' }}
+        onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+      >
+        <X size={13} />
       </button>
     </div>
   )
@@ -52,24 +60,32 @@ function timeAgo(dateStr) {
   return `${h}h ago`
 }
 
-const DONUT_COLORS = { resolved: '#10B981', escalated: '#EF4444', pending: '#F59E0B', enriched: '#6366F1' }
+const DONUT_COLORS = {
+  resolved:  'var(--accent-green)',
+  escalated: 'var(--accent-red)',
+  pending:   'var(--accent-amber)',
+  enriched:  'var(--accent-primary)',
+}
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="px-3 py-2 rounded-lg text-xs" style={{ background: '#1A1D27', border: '1px solid #2A2D3A', color: '#F8FAFC' }}>
+    <div
+      className="px-3 py-2 rounded-lg text-xs"
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+    >
       <span className="font-semibold">{payload[0].name}:</span> {payload[0].value}
     </div>
   )
 }
 
 export default function Dashboard() {
-  const [tickets, setTickets]       = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [syncing, setSyncing]       = useState(false)
+  const [tickets, setTickets]         = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [syncing, setSyncing]         = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
-  const [selected, setSelected]     = useState(null)
-  const [testOpen, setTestOpen]     = useState(false)
+  const [selected, setSelected]       = useState(null)
+  const [testOpen, setTestOpen]       = useState(false)
 
   const fetchTickets = useCallback(async (quiet = false) => {
     if (quiet) setSyncing(true); else setLoading(true)
@@ -90,7 +106,6 @@ export default function Dashboard() {
     return () => clearInterval(id)
   }, [fetchTickets])
 
-  // Donut data
   const statusCounts = tickets.reduce((acc, t) => {
     acc[t.status] = (acc[t.status] || 0) + 1
     return acc
@@ -99,42 +114,55 @@ export default function Dashboard() {
     .map(([name, value]) => ({ name, value }))
     .filter(d => d.value > 0)
 
-  // Activity feed — last 5
   const recentActivity = [...tickets]
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, 5)
 
   const activityDot = {
-    resolved:  '#10B981',
-    escalated: '#EF4444',
-    pending:   '#F59E0B',
-    enriched:  '#6366F1',
+    resolved:  'var(--accent-green)',
+    escalated: 'var(--accent-red)',
+    pending:   'var(--accent-amber)',
+    enriched:  'var(--accent-primary)',
+  }
+
+  const sectionHeaderStyle = {
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    fontWeight: 600,
   }
 
   return (
     <>
       <TopBar title="Dashboard" syncing={syncing} lastUpdated={lastUpdated} />
 
-      <main className="pt-14 pl-60 min-h-screen" style={{ background: '#0F1117' }}>
-        <div className="p-6 space-y-6">
+      <main
+        className="min-h-screen"
+        style={{ paddingTop: 48, paddingLeft: 220, background: 'var(--bg-base)' }}
+      >
+        <div className="p-5 space-y-5">
 
-          {/* Dismissible banner */}
+          {/* Banner */}
           <InfoBanner />
 
           {/* Metrics */}
           <MetricsRow tickets={tickets} loading={loading} />
 
-          {/* Middle row */}
-          <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 400px' }}>
-
-            {/* Recent tickets table */}
+          {/* Middle row — tickets table + donut */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 360px',
+              gap: 16,
+            }}
+          >
+            {/* Recent tickets */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-0.5 h-4 rounded-full" style={{ background: '#6366F1' }} />
-                  <h2 className="text-sm font-semibold" style={{ color: '#F1F5F9' }}>Recent Tickets</h2>
+                <div className="flex items-center gap-2">
+                  <span className="w-0.5 h-4 rounded-full" style={{ background: 'var(--accent-primary)' }} />
+                  <h2 style={sectionHeaderStyle}>Recent Tickets</h2>
                 </div>
-                <span className="text-xs font-medium" style={{ color: '#475569' }}>Last 10</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Last 10</span>
               </div>
               <TicketTable
                 tickets={[...tickets].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10)}
@@ -143,58 +171,74 @@ export default function Dashboard() {
               />
             </div>
 
-            {/* Donut chart */}
+            {/* Status donut */}
             <div>
-              <div className="flex items-center gap-2.5 mb-3">
-                <span className="w-0.5 h-4 rounded-full" style={{ background: '#10B981' }} />
-                <h2 className="text-sm font-semibold" style={{ color: '#F1F5F9' }}>Status Breakdown</h2>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-0.5 h-4 rounded-full" style={{ background: 'var(--accent-green)' }} />
+                <h2 style={sectionHeaderStyle}>Status Breakdown</h2>
               </div>
-              <div className="p-5 rounded-xl" style={{ background: '#1A1D27', border: '1px solid #2A2D3A' }}>
+              <div
+                className="p-5 rounded-xl"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+              >
                 {loading ? (
                   <div className="skeleton h-52 rounded-xl" />
                 ) : donutData.length === 0 ? (
-                  <div className="h-52 flex items-center justify-center text-xs" style={{ color: '#94A3B8' }}>
+                  <div className="h-52 flex items-center justify-center text-xs" style={{ color: 'var(--text-muted)' }}>
                     No data yet
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
                       <Pie
                         data={donutData}
                         cx="50%" cy="50%"
-                        innerRadius={60}
-                        outerRadius={85}
+                        innerRadius={55}
+                        outerRadius={78}
                         paddingAngle={3}
                         dataKey="value"
                         strokeWidth={0}
                       >
-                        {donutData.map((entry) => (
-                          <Cell key={entry.name} fill={DONUT_COLORS[entry.name] || '#6366F1'} />
+                        {donutData.map(entry => (
+                          <Cell
+                            key={entry.name}
+                            fill={
+                              entry.name === 'resolved'  ? '#3FB950' :
+                              entry.name === 'escalated' ? '#F85149' :
+                              entry.name === 'pending'   ? '#D29922' :
+                              '#58A6FF'
+                            }
+                          />
                         ))}
                       </Pie>
                       <Tooltip content={<CustomTooltip />} />
                       <Legend
                         iconType="circle"
-                        iconSize={8}
-                        formatter={v => <span style={{ color: '#94A3B8', fontSize: 12 }}>{v}</span>}
+                        iconSize={7}
+                        formatter={v => <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{v}</span>}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
 
-                {/* Legend counts */}
                 {!loading && donutData.length > 0 && (
                   <div className="grid grid-cols-2 gap-2 mt-2">
-                    {donutData.map(d => (
-                      <div key={d.name} className="flex items-center justify-between px-3 py-2 rounded-lg"
-                        style={{ background: '#0F1117' }}>
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full" style={{ background: DONUT_COLORS[d.name] }} />
-                          <span className="text-xs capitalize" style={{ color: '#94A3B8' }}>{d.name}</span>
+                    {donutData.map(d => {
+                      const color = d.name === 'resolved' ? '#3FB950' : d.name === 'escalated' ? '#F85149' : d.name === 'pending' ? '#D29922' : '#58A6FF'
+                      return (
+                        <div
+                          key={d.name}
+                          className="flex items-center justify-between px-3 py-1.5 rounded-lg"
+                          style={{ background: 'var(--bg-elevated)' }}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+                            <span className="text-xs capitalize" style={{ color: 'var(--text-secondary)' }}>{d.name}</span>
+                          </div>
+                          <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{d.value}</span>
                         </div>
-                        <span className="text-xs font-semibold tabular-nums" style={{ color: '#F8FAFC' }}>{d.value}</span>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -203,11 +247,14 @@ export default function Dashboard() {
 
           {/* Activity feed */}
           <div>
-            <div className="flex items-center gap-2.5 mb-3">
-              <span className="w-0.5 h-4 rounded-full" style={{ background: '#818CF8' }} />
-              <h2 className="text-sm font-semibold" style={{ color: '#F1F5F9' }}>Recent Activity</h2>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-0.5 h-4 rounded-full" style={{ background: 'var(--accent-purple)' }} />
+              <h2 style={sectionHeaderStyle}>Recent Activity</h2>
             </div>
-            <div className="rounded-xl p-5" style={{ background: '#1A1D27', border: '1px solid #2A2D3A' }}>
+            <div
+              className="rounded-xl p-5"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+            >
               {loading ? (
                 <div className="space-y-3">
                   {[...Array(4)].map((_, i) => (
@@ -219,37 +266,37 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : recentActivity.length === 0 ? (
-                <p className="text-xs text-center py-4" style={{ color: '#94A3B8' }}>No activity yet</p>
+                <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>No activity yet</p>
               ) : (
                 <div>
                   {recentActivity.map((t, i) => (
-                    <div key={t.id}
+                    <div
+                      key={t.id}
                       className="flex items-start gap-3 py-3 cursor-pointer px-2 -mx-2 rounded-lg transition-all"
                       onClick={() => setSelected(t)}
-                      onMouseEnter={e => e.currentTarget.style.background = '#ffffff06'}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                      {/* Timeline spine */}
                       <div className="flex flex-col items-center flex-shrink-0 mt-1">
                         <div className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ background: activityDot[t.status] || '#94A3B8' }} />
+                          style={{ background: activityDot[t.status] || 'var(--text-secondary)' }} />
                         {i < recentActivity.length - 1 && (
-                          <div className="w-px flex-1 mt-1" style={{ background: '#1e2130', minHeight: 20 }} />
+                          <div className="w-px flex-1 mt-1" style={{ background: 'var(--border-subtle)', minHeight: 20 }} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0 pb-1">
-                        <p className="text-sm leading-snug" style={{ color: '#E2E8F0' }}>
-                          <span className="font-mono text-xs mr-2" style={{ color: '#818CF8' }}>{t.ticket_id}</span>
+                        <p className="text-sm leading-snug" style={{ color: 'var(--text-primary)' }}>
+                          <span className="mono text-xs mr-2" style={{ color: 'var(--accent-primary)', fontSize: 11 }}>{t.ticket_id}</span>
                           {t.message.length > 70 ? t.message.slice(0, 70) + '…' : t.message}
                         </p>
-                        <p className="text-xs mt-0.5" style={{ color: '#475569' }}>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                           {t.customer_email}
                           {t.customer_context?.company_name && ` · ${t.customer_context.company_name}`}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0 mt-0.5" style={{ color: '#334155' }}>
+                      <div className="flex items-center gap-1 flex-shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }}>
                         <Clock size={10} />
-                        <span className="text-xs num">{timeAgo(t.created_at)}</span>
+                        <span className="text-xs mono num" style={{ fontSize: 11 }}>{timeAgo(t.created_at)}</span>
                       </div>
                     </div>
                   ))}
@@ -257,6 +304,7 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+
         </div>
       </main>
 
@@ -267,14 +315,20 @@ export default function Dashboard() {
         onClick={() => setTestOpen(true)}
         className="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all z-30"
         style={{
-          background: '#6366F1',
+          background: 'var(--accent-primary)',
           color: '#fff',
-          boxShadow: '0 4px 24px #6366F140',
+          boxShadow: '0 4px 20px rgba(88,166,255,0.3)',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#4F46E5'; e.currentTarget.style.boxShadow = '0 4px 32px #6366F160' }}
-        onMouseLeave={e => { e.currentTarget.style.background = '#6366F1'; e.currentTarget.style.boxShadow = '0 4px 24px #6366F140' }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = '#79B8FF'
+          e.currentTarget.style.boxShadow = '0 6px 28px rgba(88,166,255,0.45)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'var(--accent-primary)'
+          e.currentTarget.style.boxShadow = '0 4px 20px rgba(88,166,255,0.3)'
+        }}
       >
-        <Send size={15} />
+        <Send size={14} />
         Send Test Ticket
       </button>
 
