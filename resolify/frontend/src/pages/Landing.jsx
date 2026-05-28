@@ -343,7 +343,7 @@ function Hero() {
 
 // ── 3. Social proof bar ───────────────────────────────────────────────────────
 function SocialProof() {
-  const companies = ['SaaSCo', 'GrowthApp', 'TechFlow', 'DataPilot', 'CloudBase']
+  const companies = ['Statuspage', 'Helpwise', 'Chameleon', 'June.so', 'Koala']
   return (
     <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '32px 0' }}>
       <div style={{ ...container }}>
