@@ -17,6 +17,7 @@ from routers.tickets import router as tickets_router
 from routers.settings import router as settings_router
 from routers.intercom import router as intercom_router
 from routers.knowledge import router as knowledge_router
+from routers.auth import router as auth_router
 from services.rag import clean_expired_cache
 
 logging.basicConfig(
@@ -100,8 +101,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(webhook_router, prefix="/api")
-app.include_router(tickets_router, prefix="/api")
+app.include_router(auth_router,     prefix="/api")
+app.include_router(webhook_router,  prefix="/api")
+app.include_router(tickets_router,  prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(intercom_router, prefix="/api")
 app.include_router(knowledge_router, prefix="/api/knowledge")

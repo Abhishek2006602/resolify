@@ -1,6 +1,8 @@
 import logging
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from services.auth import get_optional_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -11,13 +13,15 @@ class SettingsPatch(BaseModel):
 
 
 @router.get("/settings")
-async def get_settings():
+async def get_settings(user: Optional[dict] = Depends(get_optional_user)):
     try:
         from database import get_db
         from services.clients import get_default_client_id
         db = get_db()
 
-        client_id = await get_default_client_id()
+        client_id = user["sub"] if user else None
+        if not client_id:
+            client_id = await get_default_client_id()
         if not client_id:
             return {"configured": False}
 
@@ -47,13 +51,15 @@ async def get_settings():
 
 
 @router.patch("/settings")
-async def update_settings(body: SettingsPatch):
+async def update_settings(body: SettingsPatch, user: Optional[dict] = Depends(get_optional_user)):
     try:
         from database import get_db
         from services.clients import get_default_client_id
         db = get_db()
 
-        client_id = await get_default_client_id()
+        client_id = user["sub"] if user else None
+        if not client_id:
+            client_id = await get_default_client_id()
         if not client_id:
             raise HTTPException(status_code=404, detail="No client configured")
 

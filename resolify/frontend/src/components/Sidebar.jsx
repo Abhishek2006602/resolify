@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import { Zap, LayoutDashboard, Ticket, BarChart2, Settings } from 'lucide-react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { Zap, LayoutDashboard, Ticket, BarChart2, Settings, LogOut, Shield } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 const NAV = [
-  { to: '/',          icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/tickets',   icon: Ticket,          label: 'Tickets'   },
   { to: '/analytics', icon: BarChart2,       label: 'Analytics' },
   { to: '/settings',  icon: Settings,        label: 'Settings'  },
@@ -11,6 +12,8 @@ const NAV = [
 
 export default function Sidebar() {
   const [isMobile, setIsMobile] = useState(false)
+  const { user, logout, isAdmin } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -19,7 +22,20 @@ export default function Sidebar() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
+
   const w = isMobile ? 40 : 220
+
+  // Initials from company name or name
+  const displayName = user?.company_name || user?.name || 'User'
+  const initials = displayName
+    .split(' ')
+    .slice(0, 2)
+    .map(w => w[0]?.toUpperCase() || '')
+    .join('')
 
   return (
     <aside
@@ -84,7 +100,7 @@ export default function Sidebar() {
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+              end={to === '/dashboard'}
               className="block"
               style={{ textDecoration: 'none' }}
             >
@@ -124,17 +140,16 @@ export default function Sidebar() {
       {/* Gradient divider */}
       <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--border-subtle), transparent)' }} />
 
-      {/* User */}
+      {/* User + logout */}
       <div style={{ padding: isMobile ? '8px 4px' : '8px' }}>
+        {/* User row */}
         <div
-          className="flex items-center rounded-lg cursor-pointer transition-all duration-150"
+          className="flex items-center rounded-lg"
           style={{
             justifyContent: isMobile ? 'center' : undefined,
             padding: isMobile ? '8px 0' : '10px 12px',
-            gap: isMobile ? 0 : 12,
+            gap: isMobile ? 0 : 10,
           }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
@@ -144,18 +159,51 @@ export default function Sidebar() {
               letterSpacing: '-0.5px',
             }}
           >
-            AK
+            {initials || '?'}
           </div>
           {!isMobile && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>Abhishek</p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Admin</p>
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                  {displayName}
+                </p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  {isAdmin && <Shield size={10} style={{ color: 'var(--accent-amber)' }} />}
+                  <p className="text-xs capitalize" style={{ color: isAdmin ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
+                    {user?.role || 'client'}
+                  </p>
+                </div>
               </div>
               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--accent-green)' }} />
             </>
           )}
         </div>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="flex items-center rounded-lg w-full transition-all"
+          style={{
+            justifyContent: isMobile ? 'center' : undefined,
+            padding: isMobile ? '8px 0' : '8px 12px',
+            gap: isMobile ? 0 : 8,
+            color: 'var(--text-muted)',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(248,81,73,0.08)'
+            e.currentTarget.style.color = '#F85149'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.color = 'var(--text-muted)'
+          }}
+        >
+          <LogOut size={14} />
+          {!isMobile && <span className="text-xs font-medium">Sign out</span>}
+        </button>
       </div>
     </aside>
   )

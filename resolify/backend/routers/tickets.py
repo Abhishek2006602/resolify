@@ -1,7 +1,9 @@
 import logging
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Depends
 from services.costs import units_to_cents, check_cost_alert, PLAN_MONTHLY_REVENUE
+from services.auth import get_optional_user
 from config import ANTHROPIC_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -36,11 +38,14 @@ def _week_start() -> str:
 
 
 @router.get("/tickets")
-async def list_tickets():
+async def list_tickets(user: Optional[dict] = Depends(get_optional_user)):
     try:
         from database import get_db
         db = get_db()
-        result = db.table("tickets").select("*").order("created_at", desc=True).execute()
+        query = db.table("tickets").select("*").order("created_at", desc=True)
+        if user and user.get("role") != "admin":
+            query = query.eq("client_id", user["sub"])
+        result = query.execute()
         return result.data
     except Exception as exc:
         logger.error(f"Failed to fetch tickets: {exc}")
@@ -48,11 +53,14 @@ async def list_tickets():
 
 
 @router.get("/stats/today")
-async def stats_today():
+async def stats_today(user: Optional[dict] = Depends(get_optional_user)):
     try:
         from database import get_db
         db = get_db()
-        rows = db.table("tickets").select("status").gte("created_at", _today_start()).execute().data
+        query = db.table("tickets").select("status").gte("created_at", _today_start())
+        if user and user.get("role") != "admin":
+            query = query.eq("client_id", user["sub"])
+        rows = query.execute().data
 
         total    = len(rows)
         resolved = sum(1 for r in rows if r["status"] == "resolved")
