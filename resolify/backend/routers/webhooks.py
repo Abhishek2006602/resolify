@@ -6,8 +6,9 @@ import re
 import anthropic
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from models.schemas import IntercomWebhookPayload
+from services.auth import get_optional_user
 from services.enrichment import enrich_customer
 from services.escalation import build_escalation_summary
 from services.classifier import classify_ticket
@@ -341,6 +342,7 @@ async def _send_intercom_action(
 async def receive_intercom_webhook(
     request: Request,
     x_hub_signature: Optional[str] = Header(None),
+    user: Optional[dict] = Depends(get_optional_user),
 ):
     """
     Unified Intercom webhook endpoint.
@@ -416,6 +418,12 @@ async def receive_intercom_webhook(
         if stripped != payload.message:
             payload = payload.model_copy(update={"message": stripped})
         logger.info(f"Test webhook | ticket_id={payload.ticket_id}")
+
+    # When a JWT is present (dashboard test tickets), use its sub as client_id.
+    # Real Intercom webhooks carry no auth header, so this stays None and
+    # process_ticket falls back to get_default_client_id().
+    if user and user.get("sub"):
+        payload = payload.model_copy(update={"client_id": user["sub"]})
 
     return await process_ticket(payload, conversation_id=conversation_id)
 
