@@ -23,12 +23,14 @@ async def login(body: LoginRequest):
     try:
         from database import get_db
         db = get_db()
+        logger.info(f"Login attempt for: {body.email}")
         result = db.table("clients").select("*").eq("email", body.email).execute()
-        if not result.data:
+        client = result.data[0] if result.data else None
+        logger.info(f"Client found: {client is not None}")
+        if not client:
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
-        client = result.data[0]
-
+        logger.info(f"Password hash exists: {bool(client.get('password_hash'))}")
         if not client.get("password_hash"):
             raise HTTPException(status_code=401, detail="Password not set — contact support")
 

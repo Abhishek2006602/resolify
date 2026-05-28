@@ -18,7 +18,12 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return pwd_context.verify(plain, hashed)
+    except Exception as exc:
+        logger.error(f"Password verification error: {exc}")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"Auth error: {str(exc)}")
 
 
 def create_access_token(data: dict) -> str:
