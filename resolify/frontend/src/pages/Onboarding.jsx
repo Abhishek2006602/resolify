@@ -119,9 +119,26 @@ function StepIntercom({ onNext, onSkip }) {
   async function handleConnect() {
     if (!token.trim()) return
     setConnecting(true)
-    await new Promise(r => setTimeout(r, 1200))
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001'
+      const authToken = localStorage.getItem('resolify_token')
+      await fetch(`${API_URL}/api/intercom/register-webhook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({
+          access_token: token,
+          webhook_url: 'https://resolify-backend.onrender.com/api/webhook/intercom',
+        }),
+      })
+    } catch {
+      // Non-fatal — token saved even if registration fails
+    } finally {
+      setConnecting(false)
+    }
     setConnected(true)
-    setConnecting(false)
     setTimeout(onNext, 900)
   }
 

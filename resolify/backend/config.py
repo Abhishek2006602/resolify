@@ -11,4 +11,6 @@ OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 APP_ENV: str = os.getenv("APP_ENV", "development")
 SECRET_KEY: str = os.getenv("SECRET_KEY", "change-this-in-production-use-a-long-random-string-32chars")
 ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
+INTERCOM_ACCESS_TOKEN: str = os.getenv("INTERCOM_ACCESS_TOKEN", "")
+INTERCOM_WEBHOOK_SECRET: str = os.getenv("INTERCOM_WEBHOOK_SECRET", "")
 

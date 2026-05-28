@@ -3,10 +3,11 @@ import hmac
 import hashlib
 import logging
 import re
-from fastapi import APIRouter, Request, HTTPException, Header
+from fastapi import APIRouter, Request, HTTPException, Header, Depends
 from typing import Optional
 from models.schemas import IntercomWebhookPayload
-from routers.webhooks import receive_intercom_webhook
+from routers.webhooks import process_ticket
+from services.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -29,14 +30,12 @@ def _parse_intercom_event(data: dict) -> Optional[IntercomWebhookPayload]:
     if topic not in SUPPORTED_TOPICS:
         return None
 
-    item = data.get("data", {}).get("item", {})
+    item    = data.get("data", {}).get("item", {})
     conv_id = str(item.get("id", "unknown"))
+    source  = item.get("source", {})
+    author  = source.get("author", {})
+    body    = _strip_html(source.get("body", ""))
 
-    source = item.get("source", {})
-    author = source.get("author", {})
-    body = _strip_html(source.get("body", ""))
-
-    # For replied events, grab the latest part authored by the user
     if topic == "conversation.user.replied":
         parts = (
             item.get("conversation_parts", {})
@@ -53,7 +52,7 @@ def _parse_intercom_event(data: dict) -> Optional[IntercomWebhookPayload]:
                 author = latest.get("author", author)
 
     email = author.get("email", "").strip()
-    name = author.get("name")
+    name  = author.get("name")
     if not email or not body:
         logger.warning(f"Intercom event missing email or body | topic={topic}")
         return None
@@ -106,8 +105,68 @@ async def intercom_live_webhook(
     if topic not in SUPPORTED_TOPICS:
         return {"status": "ignored", "topic": topic}
 
+    # Extract conversation ID separately so process_ticket can send replies
+    item    = data.get("data", {}).get("item", {})
+    conv_id = str(item.get("id", "")) or None
+
     payload = _parse_intercom_event(data)
     if payload is None:
         return {"status": "skipped", "reason": "could not extract email or message"}
 
-    return await receive_intercom_webhook(payload)
+    return await process_ticket(payload, conversation_id=conv_id)
+
+
+@router.post("/intercom/register-webhook")
+async def register_intercom_webhook(
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Save a client's Intercom access token and register the Resolify webhook URL
+    in their Intercom workspace.
+    Body: { access_token: str, webhook_url: str }
+    """
+    from database import get_db
+    from services.intercom import register_webhook as svc_register
+
+    data = await request.json()
+    access_token = (data.get("access_token") or "").strip()
+    webhook_url  = (data.get("webhook_url") or "").strip()
+
+    if not access_token:
+        raise HTTPException(status_code=400, detail="access_token is required")
+    if not webhook_url:
+        raise HTTPException(status_code=400, detail="webhook_url is required")
+
+    client_id = user["sub"]
+    db = get_db()
+
+    # Save token (and intercom_connected flag) to clients table
+    try:
+        db.table("clients").update({
+            "intercom_access_token": access_token,
+            "intercom_connected": True,
+        }).eq("id", client_id).execute()
+    except Exception as exc:
+        # intercom_connected column might not exist yet — fall back to token only
+        logger.warning(f"Could not set intercom_connected (column may be missing): {exc}")
+        try:
+            db.table("clients").update({
+                "intercom_access_token": access_token,
+            }).eq("id", client_id).execute()
+        except Exception as exc2:
+            logger.error(f"Failed to save Intercom token: {exc2}")
+            raise HTTPException(status_code=500, detail="Could not save access token")
+
+    # Register webhook in Intercom
+    ok = await svc_register(webhook_url, access_token)
+
+    return {
+        "ok": True,
+        "webhook_registered": ok,
+        "message": (
+            "Intercom connected and webhook registered successfully"
+            if ok
+            else "Token saved — webhook registration failed (check token permissions)"
+        ),
+    }

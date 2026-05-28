@@ -1,7 +1,12 @@
+import json
+import hmac
+import hashlib
 import logging
+import re
 import anthropic
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Header, Request
 from models.schemas import IntercomWebhookPayload
 from services.enrichment import enrich_customer
 from services.escalation import build_escalation_summary
@@ -16,10 +21,30 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 RAG_CONFIDENCE_THRESHOLD = 0.3
+SUPPORTED_TOPICS = {"conversation.user.created", "conversation.user.replied"}
 
 
-@router.post("/webhook/intercom")
-async def receive_intercom_webhook(payload: IntercomWebhookPayload):
+def _verify_intercom_signature(raw_body: bytes, header_sig: str, secret: str) -> bool:
+    expected = "sha1=" + hmac.new(secret.encode(), raw_body, hashlib.sha1).hexdigest()
+    return hmac.compare_digest(expected, header_sig)
+
+
+def _strip_html(text: str) -> str:
+    return re.sub(r"<[^>]+>", " ", text or "").strip()
+
+
+# ── Core pipeline ──────────────────────────────────────────────────────────────
+
+async def process_ticket(
+    payload: IntercomWebhookPayload,
+    conversation_id: Optional[str] = None,
+) -> dict:
+    """
+    Core ticket processing pipeline.
+    Called by the HTTP endpoint, the /live endpoint, and the queued-retry task.
+    conversation_id is the real Intercom conversation ID; when set, Intercom
+    replies/notes are sent after processing (unless draft_mode is active).
+    """
     ts = datetime.now(timezone.utc).isoformat()
     db_id = None
 
@@ -36,16 +61,16 @@ async def receive_intercom_webhook(payload: IntercomWebhookPayload):
     draft = await is_draft_mode(client_id)
     print(f"  [client] id={client_id} draft_mode={draft}")
 
-    # ── Fix 4: Sanitize input ──────────────────────────────────────────
+    # ── Sanitize input ─────────────────────────────────────────────────
     sanitized = sanitize_input(payload.message, ticket_id=payload.ticket_id)
     safe_message = sanitized.text
     injection_detected = sanitized.injection_detected
 
-    # ── Fix 6: Detect language ─────────────────────────────────────────
+    # ── Detect language ────────────────────────────────────────────────
     language = await detect_language(safe_message)
     print(f"  [language] detected: {language}")
 
-    # ── Fix 5: RAG retrieve ────────────────────────────────────────────
+    # ── RAG retrieve ───────────────────────────────────────────────────
     rag_chunks, rag_confidence = await rag_retrieve(safe_message, client_id)
     knowledge_gap = rag_confidence < RAG_CONFIDENCE_THRESHOLD
     print(f"  [rag] confidence={rag_confidence:.2f} knowledge_gap={knowledge_gap}")
@@ -56,15 +81,15 @@ async def receive_intercom_webhook(payload: IntercomWebhookPayload):
         db = get_db()
 
         insert_result = db.table("tickets").insert({
-            "ticket_id":   payload.ticket_id,
+            "ticket_id":      payload.ticket_id,
             "customer_email": payload.customer_email,
             "customer_name":  payload.customer_name,
-            "message":     payload.message,
-            "status":      "pending",
-            "client_id":   client_id,
-            "language":    language,
-            "knowledge_gap":   knowledge_gap,
-            "rag_confidence":  rag_confidence,
+            "message":        payload.message,
+            "status":         "pending",
+            "client_id":      client_id,
+            "language":       language,
+            "knowledge_gap":  knowledge_gap,
+            "rag_confidence": rag_confidence,
         }).execute()
 
         if not insert_result.data:
@@ -110,17 +135,15 @@ async def receive_intercom_webhook(payload: IntercomWebhookPayload):
         try:
             print(f"\n[{ts}] CLASSIFYING...")
             classification = await classify_ticket(safe_message, language=language)
-            total_tokens    += classification.tokens_used
+            total_tokens     += classification.tokens_used
             total_cost_units += classification.cost_units
 
-            # Fix 4: force escalation if injection detected
             if injection_detected:
                 classification.escalate_immediately = True
                 classification.escalate_reason = "Prompt injection attempt detected"
                 logger.warning(f"Injection escalation forced | ticket_id={payload.ticket_id}")
 
         except anthropic.APIError as exc:
-            # Fix 3: queue on Claude API failure
             logger.error(f"Claude API unavailable — ticket queued for retry | {exc}")
             print(f"[{ts}] Claude API unavailable — ticket queued for retry")
             _queue_ticket(db, db_id, ts)
@@ -135,7 +158,6 @@ async def receive_intercom_webhook(payload: IntercomWebhookPayload):
     final_status = "pending"
     model_used = None
 
-    # Fix 5: escalate on knowledge gap — only when a real KB is connected
     if HAS_KNOWLEDGE_BASE and knowledge_gap and not rag_chunks:
         if classification is not None:
             classification.escalate_immediately = True
@@ -167,11 +189,10 @@ async def receive_intercom_webhook(payload: IntercomWebhookPayload):
                     tone=classification.tone,
                     language=language,
                 )
-                total_tokens    += generated.tokens_used
+                total_tokens     += generated.tokens_used
                 total_cost_units += generated.cost_units
                 model_used = generated.model_used
 
-                # Fix 1: draft mode — save response but never send
                 if draft:
                     print(f"[{ts}] DRAFT MODE — response saved, not sent to customer")
                     logger.info(f"Draft mode active — response withheld | ticket_id={payload.ticket_id}")
@@ -198,20 +219,20 @@ async def receive_intercom_webhook(payload: IntercomWebhookPayload):
     # ── Step 5: Update DB ──────────────────────────────────────────────
     try:
         update: dict = {
-            "status":       final_status,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-            "tokens_used":  total_tokens,
+            "status":         final_status,
+            "processed_at":   datetime.now(timezone.utc).isoformat(),
+            "tokens_used":    total_tokens,
             "api_cost_cents": total_cost_units,
             "knowledge_gap":  knowledge_gap,
             "rag_confidence": rag_confidence,
             "language":       language,
         }
         if context is not None:
-            update["customer_context"]  = context.model_dump()
+            update["customer_context"]   = context.model_dump()
             update["escalation_summary"] = escalation_summary
         if classification is not None:
-            update["intent"]             = classification.intent
-            update["confidence"]         = classification.confidence
+            update["intent"]               = classification.intent
+            update["confidence"]           = classification.confidence
             update["escalate_immediately"] = classification.escalate_immediately
         if ai_response is not None:
             update["ai_response"] = ai_response
@@ -225,20 +246,32 @@ async def receive_intercom_webhook(payload: IntercomWebhookPayload):
         logger.error(f"DB update failed for {db_id}: {exc}")
         print(f"[{ts}] DB UPDATE FAILED: {exc}")
 
+    # ── Step 6: Send Intercom reply ────────────────────────────────────
+    if conversation_id:
+        await _send_intercom_action(
+            conversation_id=conversation_id,
+            client_id=client_id,
+            final_status=final_status,
+            ai_response=ai_response,
+            escalation_summary=escalation_summary,
+            draft=draft,
+            ts=ts,
+        )
+
     print(f"{'='*60}\n")
 
     # ── Build response ────────────────────────────────────────────────
     resp: dict = {
-        "ticket_id": payload.ticket_id,
-        "db_id":     db_id,
-        "status":    final_status,
-        "language":  language,
-        "draft_mode": draft,
+        "ticket_id":          payload.ticket_id,
+        "db_id":              db_id,
+        "status":             final_status,
+        "language":           language,
+        "draft_mode":         draft,
         "injection_detected": injection_detected,
-        "knowledge_gap":  knowledge_gap,
-        "rag_confidence": rag_confidence,
-        "tokens_used":    total_tokens,
-        "cost_units":     total_cost_units,
+        "knowledge_gap":      knowledge_gap,
+        "rag_confidence":     rag_confidence,
+        "tokens_used":        total_tokens,
+        "cost_units":         total_cost_units,
     }
     if classification is not None:
         resp["intent"]     = classification.intent
@@ -252,6 +285,142 @@ async def receive_intercom_webhook(payload: IntercomWebhookPayload):
         resp["escalation_summary"] = escalation_summary
     return resp
 
+
+async def _send_intercom_action(
+    conversation_id: str,
+    client_id: Optional[str],
+    final_status: str,
+    ai_response: Optional[str],
+    escalation_summary: Optional[str],
+    draft: bool,
+    ts: str,
+) -> None:
+    """Send reply or internal note to Intercom after ticket processing."""
+    if draft:
+        logger.info(f"DRAFT MODE — response saved, not sent | conv={conversation_id}")
+        print(f"[{ts}] DRAFT MODE — response saved, not sent to Intercom")
+        return
+
+    try:
+        from services.intercom import reply_to_conversation, add_internal_note
+
+        # Fetch the client's Intercom access token
+        client_access_token = ""
+        if client_id:
+            try:
+                from database import get_db
+                rows = get_db().table("clients").select("intercom_access_token").eq("id", client_id).execute()
+                if rows.data:
+                    client_access_token = rows.data[0].get("intercom_access_token") or ""
+            except Exception as exc:
+                logger.warning(f"Could not fetch client Intercom token: {exc}")
+
+        if final_status == "resolved" and ai_response:
+            ok = await reply_to_conversation(conversation_id, ai_response, client_access_token)
+            if ok:
+                logger.info(f"REPLIED to conversation {conversation_id}")
+                print(f"[{ts}] REPLIED to conversation {conversation_id}")
+            else:
+                logger.warning(f"Reply not sent for conversation {conversation_id}")
+
+        elif final_status == "escalated" and escalation_summary:
+            ok = await add_internal_note(conversation_id, escalation_summary, client_access_token)
+            if ok:
+                logger.info(f"NOTE ADDED to conversation {conversation_id}")
+                print(f"[{ts}] NOTE ADDED to conversation {conversation_id}")
+            else:
+                logger.warning(f"Note not added for conversation {conversation_id}")
+
+    except Exception as exc:
+        logger.error(f"Intercom action failed for {conversation_id}: {exc}")
+
+
+# ── HTTP endpoint ──────────────────────────────────────────────────────────────
+
+@router.post("/webhook/intercom")
+async def receive_intercom_webhook(
+    request: Request,
+    x_hub_signature: Optional[str] = Header(None),
+):
+    """
+    Unified Intercom webhook endpoint.
+    Accepts both real Intercom notification_event payloads and simple test payloads.
+    Verifies HMAC-SHA1 signature when X-Hub-Signature is present and
+    INTERCOM_WEBHOOK_SECRET is configured.
+    """
+    raw_body = await request.body()
+
+    # ── Signature verification ─────────────────────────────────────────
+    from config import INTERCOM_WEBHOOK_SECRET
+    if x_hub_signature and INTERCOM_WEBHOOK_SECRET:
+        if not _verify_intercom_signature(raw_body, x_hub_signature, INTERCOM_WEBHOOK_SECRET):
+            logger.warning("Intercom webhook signature mismatch — rejecting")
+            raise HTTPException(status_code=401, detail="Invalid signature")
+
+    try:
+        data = json.loads(raw_body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    if data.get("topic") == "ping":
+        return {"status": "pong"}
+
+    # ── Format detection ───────────────────────────────────────────────
+    conversation_id: Optional[str] = None
+
+    if "data" in data and "item" in data.get("data", {}):
+        # ── Real Intercom notification_event format ────────────────────
+        topic = data.get("topic", "")
+        if topic not in SUPPORTED_TOPICS:
+            logger.info(f"Ignoring unsupported Intercom topic: {topic}")
+            return {"status": "ignored", "topic": topic}
+
+        item        = data["data"]["item"]
+        conversation_id = str(item.get("id", ""))
+        source      = item.get("source", {})
+        author      = source.get("author", {})
+        body_text   = _strip_html(source.get("body", ""))
+
+        # For replied events, use the latest user-authored part
+        if topic == "conversation.user.replied":
+            parts = item.get("conversation_parts", {}).get("conversation_parts", [])
+            user_parts = [p for p in parts if p.get("author", {}).get("type") in ("user", "lead")]
+            if user_parts:
+                latest = user_parts[-1]
+                body_text = _strip_html(latest.get("body", "")) or body_text
+                if not author.get("email"):
+                    author = latest.get("author", author)
+
+        email = (author.get("email") or "").strip() or "unknown@intercom.com"
+        name  = author.get("name") or "Unknown"
+
+        if not body_text:
+            return {"status": "skipped", "reason": "empty message body"}
+
+        payload = IntercomWebhookPayload(
+            ticket_id=f"IC-{conversation_id}",
+            customer_email=email,
+            customer_name=name,
+            message=body_text,
+        )
+        logger.info(f"Real Intercom event | topic={topic} conv={conversation_id} email={email}")
+
+    else:
+        # ── Simple test format: {ticket_id, customer_email, message, …} ─
+        try:
+            payload = IntercomWebhookPayload(**data)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid payload: {exc}")
+        # Strip HTML from test messages too
+        stripped = _strip_html(payload.message)
+        if stripped != payload.message:
+            payload = payload.model_copy(update={"message": stripped})
+        logger.info(f"Test webhook | ticket_id={payload.ticket_id}")
+
+    return await process_ticket(payload, conversation_id=conversation_id)
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _queue_ticket(db, db_id: str, ts: str) -> None:
     try:
@@ -281,9 +450,7 @@ async def process_queued_ticket(ticket: dict) -> None:
     )
 
     try:
-        # Reset status to pending so the main handler processes it
         db.table("tickets").update({"status": "pending"}).eq("id", db_id).execute()
-        # Re-run classification + generation directly
         context = await enrich_customer(payload.customer_email)
         safe_message = sanitize_input(payload.message, ticket_id=ticket_id).text
         language = ticket.get("language", "en")
@@ -296,12 +463,12 @@ async def process_queued_ticket(ticket: dict) -> None:
         )
         if should_escalate:
             db.table("tickets").update({
-                "status": "escalated",
-                "intent": classification.intent,
-                "confidence": classification.confidence,
+                "status":               "escalated",
+                "intent":               classification.intent,
+                "confidence":           classification.confidence,
                 "escalate_immediately": classification.escalate_immediately,
-                "tokens_used": classification.tokens_used,
-                "api_cost_cents": classification.cost_units,
+                "tokens_used":          classification.tokens_used,
+                "api_cost_cents":       classification.cost_units,
             }).eq("id", db_id).execute()
             logger.info(f"Queued ticket escalated on retry | db_id={db_id}")
         else:
@@ -311,14 +478,14 @@ async def process_queued_ticket(ticket: dict) -> None:
                 language=language,
             )
             db.table("tickets").update({
-                "status": "resolved",
-                "intent": classification.intent,
-                "confidence": classification.confidence,
-                "ai_response": generated.response_text,
-                "model_used": generated.model_used,
-                "tokens_used": classification.tokens_used + generated.tokens_used,
+                "status":         "resolved",
+                "intent":         classification.intent,
+                "confidence":     classification.confidence,
+                "ai_response":    generated.response_text,
+                "model_used":     generated.model_used,
+                "tokens_used":    classification.tokens_used + generated.tokens_used,
                 "api_cost_cents": classification.cost_units + generated.cost_units,
-                "processed_at": datetime.now(timezone.utc).isoformat(),
+                "processed_at":   datetime.now(timezone.utc).isoformat(),
             }).eq("id", db_id).execute()
             logger.info(f"Queued ticket resolved on retry | db_id={db_id}")
 
