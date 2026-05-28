@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-print("Set password for admin account (abhishekkamlakar24@vit.edu.in)")
+print("Set password for admin account (abhishekkamlakar425@gmail.com)")
 password = getpass.getpass("Enter password: ")
 confirm  = getpass.getpass("Confirm password: ")
 
