@@ -181,9 +181,10 @@ function StepIntercom({ onNext, onSkip }) {
             placeholder="dG9rOjEyMzQ1..."
             className="w-full px-3 py-2.5 text-sm rounded-lg outline-none mb-4"
             style={{
-              background: 'rgba(255,255,255,0.04)',
+              background: 'var(--bg-elevated)',
               border: '1px solid var(--border-default)',
               color: 'var(--text-primary)',
+              colorScheme: 'dark',
               transition: 'border-color 0.15s',
             }}
             onFocus={e => e.target.style.borderColor = 'var(--accent-primary)'}
@@ -292,9 +293,10 @@ function StepDocs({ onNext, onSkip }) {
             rows={5}
             className="w-full px-3 py-2.5 text-xs rounded-lg outline-none resize-none mb-4"
             style={{
-              background: 'rgba(255,255,255,0.04)',
+              background: 'var(--bg-elevated)',
               border: '1px solid var(--border-default)',
               color: 'var(--text-primary)',
+              colorScheme: 'dark',
               lineHeight: 1.6,
               transition: 'border-color 0.15s',
             }}
@@ -397,7 +399,13 @@ export default function Onboarding() {
   return (
     <div
       className="min-h-screen flex items-center justify-center"
-      style={{ background: 'var(--bg-base)', padding: '24px 16px' }}
+      style={{
+        background: 'var(--bg-base)',
+        paddingTop: 24,
+        paddingBottom: 24,
+        paddingRight: 16,
+        paddingLeft: 'calc(var(--sidebar-w) + 16px)',
+      }}
     >
       <div
         className="w-full max-w-lg rounded-2xl fade-in"
