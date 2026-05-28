@@ -92,7 +92,7 @@ export default function TicketTable({ tickets, loading, onOpen }) {
     <div className="rounded-xl overflow-hidden"
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
       <div style={{ overflowX: 'auto' }}>
-        <table className="w-full" style={{ minWidth: 700 }}>
+        <table className="w-full" style={{ minWidth: 580 }}>
           <thead style={{ background: 'var(--bg-card)' }}>
             <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
               {cols.map((c, i) => (

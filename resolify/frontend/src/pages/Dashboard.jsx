@@ -133,11 +133,11 @@ export default function Dashboard() {
           <InfoBanner />
           <MetricsRow tickets={tickets} loading={loading} />
 
-          {/* Middle row — tickets + donut.  Fix 1: wider right column (420px) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16 }}>
+          {/* Middle row — minmax(0,1fr) lets the table column shrink; donut at 320px */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 16 }}>
 
-            {/* Recent tickets */}
-            <div>
+            {/* Recent tickets — minWidth:0 prevents 1fr from expanding to table's minWidth */}
+            <div style={{ minWidth: 0 }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="w-0.5 h-4 rounded-full" style={{ background: 'var(--accent-primary)' }} />
@@ -279,7 +279,7 @@ export default function Dashboard() {
       {/* Fix 4 — premium Send Test Ticket button */}
       <button
         onClick={() => setTestOpen(true)}
-        className="btn-send fixed bottom-6 right-6 flex items-center gap-2.5 rounded-xl font-semibold transition-all z-30 btn-glow-pulse"
+        className="btn-send fixed bottom-16 right-6 flex items-center gap-2.5 rounded-xl font-semibold transition-all z-30 btn-glow-pulse"
         style={{
           background: 'var(--accent-primary)',
           color: '#fff',
