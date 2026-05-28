@@ -67,12 +67,12 @@ export default function TestPanel({ onClose, onTicketSent }) {
 
       {/* Modal */}
       <div
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[460px] rounded-2xl z-50 fade-in overflow-hidden"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[460px] rounded-2xl z-50 fade-in overflow-hidden flex flex-col"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', maxHeight: '90vh' }}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-5 py-4"
+          className="flex items-center justify-between px-5 py-4 flex-shrink-0"
           style={{ borderBottom: '1px solid var(--border-subtle)' }}
         >
           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
@@ -89,7 +89,7 @@ export default function TestPanel({ onClose, onTicketSent }) {
           </button>
         </div>
 
-        <div className="px-5 py-4">
+        <div className="px-5 py-4 overflow-y-auto flex-1">
           {/* Success / timeout state */}
           {success || timedOut ? (
             <div className="flex flex-col items-center justify-center py-8 gap-3 fade-in">
@@ -120,7 +120,7 @@ export default function TestPanel({ onClose, onTicketSent }) {
               )}
             </div>
           ) : (
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={submit} className="space-y-3">
               {/* Email + Name */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -166,7 +166,7 @@ export default function TestPanel({ onClose, onTicketSent }) {
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   placeholder="Type your support message here..."
-                  rows={4}
+                  rows={3}
                   className="w-full px-3 py-2 rounded-lg text-xs outline-none transition-all resize-none"
                   style={inputStyle}
                   onFocus={e => e.target.style.borderColor = 'var(--accent-primary)'}
