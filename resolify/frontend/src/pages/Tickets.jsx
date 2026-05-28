@@ -60,17 +60,20 @@ export default function Tickets() {
     <>
       <TopBar title="Tickets" syncing={syncing} lastUpdated={lastUpdated} />
 
-      <main className="pt-14 pl-60 min-h-screen" style={{ background: '#0F1117' }}>
-        <div className="p-6 space-y-4">
+      <main
+        className="min-h-screen"
+        style={{ paddingTop: 48, paddingLeft: 'var(--sidebar-w)', background: 'var(--bg-base)' }}
+      >
+        <div className="p-5 space-y-4">
 
-          {/* Header */}
+          {/* Header row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <span className="w-0.5 h-4 rounded-full" style={{ background: '#6366F1' }} />
+              <span className="w-0.5 h-4 rounded-full" style={{ background: 'var(--accent-primary)' }} />
               <div>
-                <h2 className="text-sm font-semibold" style={{ color: '#F1F5F9' }}>All Tickets</h2>
+                <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>All Tickets</h2>
                 {!loading && (
-                  <p className="text-xs" style={{ color: '#475569' }}>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {filtered.length} of {tickets.length} ticket{tickets.length !== 1 ? 's' : ''}
                   </p>
                 )}
@@ -80,25 +83,33 @@ export default function Tickets() {
             {/* Search */}
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2"
-                style={{ color: '#475569' }} />
+                style={{ color: 'var(--text-secondary)' }} />
               <input
                 type="text"
                 placeholder="Search tickets..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-8 pr-8 py-2 rounded-lg text-xs w-56 outline-none transition-all"
+                className="pl-8 pr-8 py-2 rounded-lg text-xs w-60 outline-none transition-all"
                 style={{
-                  background: '#1A1D27',
-                  border: '1px solid #2A2D3A',
-                  color: '#F1F5F9',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
                 }}
-                onFocus={e => e.target.style.borderColor = '#6366F1'}
-                onBlur={e => e.target.style.borderColor = '#2A2D3A'}
+                onFocus={e => {
+                  e.target.style.borderColor = 'var(--accent-primary)'
+                  e.target.style.boxShadow = '0 0 0 3px rgba(88,166,255,0.15)'
+                }}
+                onBlur={e => {
+                  e.target.style.borderColor = 'var(--border-default)'
+                  e.target.style.boxShadow = 'none'
+                }}
               />
               {search && (
-                <button onClick={() => setSearch('')}
+                <button
+                  onClick={() => setSearch('')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2"
-                  style={{ color: '#475569' }}>
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   <X size={12} />
                 </button>
               )}
@@ -106,8 +117,10 @@ export default function Tickets() {
           </div>
 
           {/* Status tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-lg w-fit"
-            style={{ background: '#1A1D27', border: '1px solid #2A2D3A' }}>
+          <div
+            className="flex items-center gap-1 p-1 rounded-lg w-fit"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+          >
             {STATUS_TABS.map(tab => {
               const active = statusTab === tab.key
               return (
@@ -116,18 +129,18 @@ export default function Tickets() {
                   onClick={() => setStatusTab(tab.key)}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all"
                   style={{
-                    background: active ? '#6366F1' : 'transparent',
-                    color: active ? '#fff' : '#64748B',
+                    background: active ? 'var(--accent-primary)' : 'transparent',
+                    color: active ? '#fff' : 'var(--text-secondary)',
                   }}
-                  onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#94A3B8' }}
-                  onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#64748B' }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-primary)' }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-secondary)' }}
                 >
                   {tab.label}
                   <span
                     className="px-1.5 py-0.5 rounded text-xs font-bold"
                     style={{
-                      background: active ? '#ffffff25' : '#2A2D3A',
-                      color: active ? '#fff' : '#475569',
+                      background: active ? 'rgba(255,255,255,0.2)' : 'var(--border-subtle)',
+                      color: active ? '#fff' : 'var(--text-muted)',
                     }}
                   >
                     {counts[tab.key]}

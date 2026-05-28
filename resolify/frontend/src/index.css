@@ -3,20 +3,34 @@
 @tailwind utilities;
 
 :root {
-  --bg-base:      #080C14;
-  --bg-surface:   #0D1117;
-  --bg-elevated:  #161B22;
-  --bg-card:      #1C2333;
-  --border-subtle:#21262D;
+  --bg-base:       #080C14;
+  --bg-surface:    #0D1117;
+  --bg-elevated:   #161B22;
+  --bg-card:       #1C2333;
+  --border-subtle: #21262D;
   --border-default:#30363D;
   --accent-primary:#58A6FF;
-  --accent-green: #3FB950;
-  --accent-red:   #F85149;
-  --accent-amber: #D29922;
-  --accent-purple:#8B5CF6;
-  --text-primary: #E6EDF3;
+  --accent-green:  #3FB950;
+  --accent-red:    #F85149;
+  --accent-amber:  #D29922;
+  --accent-purple: #8B5CF6;
+  --text-primary:  #E6EDF3;
   --text-secondary:#8B949E;
-  --text-muted:   #484F58;
+  --text-muted:    #484F58;
+  --sidebar-w:     220px;
+}
+
+/* ── Light mode ──────────────────────────────────────────────── */
+.light {
+  --bg-base:       #F6F8FA;
+  --bg-surface:    #FFFFFF;
+  --bg-elevated:   #F0F2F5;
+  --bg-card:       #FFFFFF;
+  --border-subtle: #D0D7DE;
+  --border-default:#AFB8C1;
+  --text-primary:  #1F2328;
+  --text-secondary:#656D76;
+  --text-muted:    #9198A1;
 }
 
 * { box-sizing: border-box; }
@@ -79,5 +93,26 @@ body {
   border-radius: 6px;
 }
 
+/* ── Send button ───────────────────────────────────────────── */
+@keyframes btn-glow-pulse {
+  0%, 100% { box-shadow: 0 8px 32px rgba(88,166,255,0.4); }
+  50%       { box-shadow: 0 8px 44px rgba(88,166,255,0.65); }
+}
+.btn-glow-pulse { animation: btn-glow-pulse 2.4s ease-in-out infinite; }
+.btn-send-icon  { transition: transform 0.2s ease; display: inline-flex; align-items: center; }
+.btn-send:hover .btn-send-icon { transform: translateX(3px); }
+
 /* ── Number font ───────────────────────────────────────────── */
 .num { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* ── Mobile responsive ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root { --sidebar-w: 40px; }
+
+  .resolify-metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .resolify-drawer {
+    width: 100vw !important;
+  }
+}

@@ -1,5 +1,14 @@
 import { Ticket, CheckCircle2, AlertTriangle, Zap, Clock, DollarSign, TrendingUp, TrendingDown } from 'lucide-react'
 
+const DEMO = {
+  total: 24,
+  resolved: 16,
+  escalated: 8,
+  resolveRate: 67,
+  timeSavedMin: 128,
+  costSaved: '53.28',
+}
+
 function MetricCard({ icon: Icon, iconColor, accentColor, label, value, sub, trendUp }) {
   return (
     <div
@@ -13,7 +22,7 @@ function MetricCard({ icon: Icon, iconColor, accentColor, label, value, sub, tre
     >
       <div className="flex items-center justify-between mb-3">
         <p
-          className="text-xs font-semibold uppercase tracking-wider"
+          className="text-xs font-semibold uppercase"
           style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}
         >
           {label}
@@ -80,7 +89,7 @@ export default function MetricsRow({ tickets, loading }) {
 
   if (loading) {
     return (
-      <div style={gridStyle}>
+      <div className="resolify-metrics-grid" style={gridStyle}>
         {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
       </div>
     )
@@ -88,68 +97,78 @@ export default function MetricsRow({ tickets, loading }) {
 
   const today = new Date().toDateString()
   const todayTickets = tickets.filter(t => new Date(t.created_at).toDateString() === today)
-  const resolved     = todayTickets.filter(t => t.status === 'resolved').length
-  const escalated    = todayTickets.filter(t => t.status === 'escalated').length
-  const total        = todayTickets.length
-  const resolveRate  = total > 0 ? Math.round((resolved / total) * 100) : 0
-  const timeSavedMin = resolved * 8
-  const costSaved    = (resolved * 3.33).toFixed(2)
+  const realTotal    = todayTickets.length
+  const isDemoMode   = realTotal === 0
+
+  const total       = isDemoMode ? DEMO.total        : realTotal
+  const resolved    = isDemoMode ? DEMO.resolved      : todayTickets.filter(t => t.status === 'resolved').length
+  const escalated   = isDemoMode ? DEMO.escalated     : todayTickets.filter(t => t.status === 'escalated').length
+  const resolveRate = isDemoMode ? DEMO.resolveRate   : (total > 0 ? Math.round((resolved / total) * 100) : 0)
+  const timeSaved   = isDemoMode ? DEMO.timeSavedMin  : resolved * 8
+  const costSaved   = isDemoMode ? DEMO.costSaved     : (resolved * 3.33).toFixed(2)
 
   return (
-    <div style={gridStyle}>
-      <MetricCard
-        icon={Ticket}
-        iconColor="var(--accent-primary)"
-        accentColor="var(--accent-primary)"
-        label="Total Today"
-        value={total}
-        sub={`${total === 1 ? '1 ticket' : `${total} tickets`} received`}
-        trendUp
-      />
-      <MetricCard
-        icon={CheckCircle2}
-        iconColor="var(--accent-green)"
-        accentColor="var(--accent-green)"
-        label="Auto Resolved"
-        value={resolved}
-        sub={`${resolveRate}% resolution rate`}
-        trendUp={resolveRate >= 50}
-      />
-      <MetricCard
-        icon={AlertTriangle}
-        iconColor="var(--accent-red)"
-        accentColor="var(--accent-red)"
-        label="Escalated"
-        value={escalated}
-        sub={escalated === 0 ? 'All clear' : 'Need human review'}
-      />
-      <MetricCard
-        icon={Zap}
-        iconColor="var(--accent-green)"
-        accentColor="var(--accent-green)"
-        label="Response Time"
-        value="< 1s"
-        sub="Powered by Claude AI"
-        trendUp
-      />
-      <MetricCard
-        icon={Clock}
-        iconColor="var(--accent-purple)"
-        accentColor="var(--accent-purple)"
-        label="Time Saved"
-        value={formatTimeSaved(timeSavedMin)}
-        sub="8 min per resolved ticket"
-        trendUp
-      />
-      <MetricCard
-        icon={DollarSign}
-        iconColor="var(--accent-green)"
-        accentColor="var(--accent-green)"
-        label="Cost Saved"
-        value={`$${costSaved}`}
-        sub="at $25/hr average"
-        trendUp
-      />
+    <div>
+      <div className="resolify-metrics-grid" style={gridStyle}>
+        <MetricCard
+          icon={Ticket}
+          iconColor="var(--accent-primary)"
+          accentColor="var(--accent-primary)"
+          label="Total Today"
+          value={total}
+          sub={`${total === 1 ? '1 ticket' : `${total} tickets`} received`}
+          trendUp
+        />
+        <MetricCard
+          icon={CheckCircle2}
+          iconColor="var(--accent-green)"
+          accentColor="var(--accent-green)"
+          label="Auto Resolved"
+          value={resolved}
+          sub={`${resolveRate}% resolution rate`}
+          trendUp={resolveRate >= 50}
+        />
+        <MetricCard
+          icon={AlertTriangle}
+          iconColor="var(--accent-red)"
+          accentColor="var(--accent-red)"
+          label="Escalated"
+          value={escalated}
+          sub={escalated === 0 ? 'All clear' : 'Need human review'}
+        />
+        <MetricCard
+          icon={Zap}
+          iconColor="var(--accent-green)"
+          accentColor="var(--accent-green)"
+          label="Response Time"
+          value="< 1s"
+          sub="Powered by Claude AI"
+          trendUp
+        />
+        <MetricCard
+          icon={Clock}
+          iconColor="var(--accent-purple)"
+          accentColor="var(--accent-purple)"
+          label="Time Saved"
+          value={formatTimeSaved(timeSaved)}
+          sub="8 min per resolved ticket"
+          trendUp
+        />
+        <MetricCard
+          icon={DollarSign}
+          iconColor="var(--accent-green)"
+          accentColor="var(--accent-green)"
+          label="Cost Saved"
+          value={`$${costSaved}`}
+          sub="at $25/hr average"
+          trendUp
+        />
+      </div>
+      {isDemoMode && (
+        <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted)' }}>
+          Demo data · Real numbers will appear when tickets arrive
+        </p>
+      )}
     </div>
   )
 }

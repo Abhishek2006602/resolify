@@ -10,6 +10,12 @@ import Settings from './pages/Settings'
 
 export default function App() {
   useEffect(() => {
+    // Restore saved theme preference
+    const saved = localStorage.getItem('resolify_theme')
+    if (saved === 'light') document.documentElement.classList.add('light')
+  }, [])
+
+  useEffect(() => {
     const keepAlive = setInterval(() => {
       fetch(`${API_URL}/health`).catch(() => {})
     }, 840000) // 14 min — keeps Render free tier awake

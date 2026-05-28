@@ -13,7 +13,12 @@ const INTENT_COLORS = {
   auth: '#58A6FF', howto: '#3FB950', unknown: '#484F58',
 }
 
-function KpiCard({ icon: Icon, color, label, value, sub }) {
+// Fix 10 — Demo baseline for sparse data
+const DEMO_RESOLVED  = [3, 5, 4, 7, 6, 8, 12]
+const DEMO_ESCALATED = [1, 1, 1, 2, 1, 2, 4]
+const DEMO_KPI = { total_7d: 45, resolved_7d: 33, resolution_rate_7d: 73.3, avg_confidence: 87.4 }
+
+function KpiCard({ icon: Icon, color, label, value, sub, highlight, showArrow }) {
   return (
     <div
       className="p-5 rounded-xl"
@@ -25,7 +30,7 @@ function KpiCard({ icon: Icon, color, label, value, sub }) {
     >
       <div className="flex items-center justify-between mb-3">
         <p
-          className="text-xs font-semibold uppercase tracking-wider"
+          className="text-xs font-semibold uppercase"
           style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}
         >
           {label}
@@ -34,7 +39,19 @@ function KpiCard({ icon: Icon, color, label, value, sub }) {
           <Icon size={14} color={color} />
         </div>
       </div>
-      <p className="text-3xl font-bold num" style={{ color: 'var(--text-primary)', lineHeight: 1 }}>{value}</p>
+      <div className="flex items-center gap-2">
+        {showArrow && <TrendingUp size={18} color="var(--accent-green)" />}
+        <p
+          className="font-bold num"
+          style={{
+            color: highlight ? 'var(--accent-green)' : 'var(--text-primary)',
+            lineHeight: 1,
+            fontSize: highlight ? 36 : 30,
+          }}
+        >
+          {value}
+        </p>
+      </div>
       {sub && <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
     </div>
   )
@@ -88,44 +105,60 @@ export default function Analytics() {
     return date.toLocaleDateString('en', { month: 'short', day: 'numeric' })
   }
 
-  const dailyFormatted = (data?.daily || []).map(d => ({ ...d, label: formatDay(d.date) }))
+  // Fix 10 — use demo baseline when data is empty
+  const isDemo = !data?.total_7d || data.total_7d === 0
+
+  const dailyFormatted = (data?.daily || []).map((d, i) => ({
+    ...d,
+    label:    formatDay(d.date),
+    resolved:  isDemo ? DEMO_RESOLVED[i]  : d.resolved,
+    escalated: isDemo ? DEMO_ESCALATED[i] : d.escalated,
+  }))
+
+  const kpi = isDemo ? DEMO_KPI : {
+    total_7d:           data?.total_7d            ?? 0,
+    resolved_7d:        data?.resolved_7d          ?? 0,
+    resolution_rate_7d: data?.resolution_rate_7d   ?? 0,
+    avg_confidence:     data?.avg_confidence       ?? 0,
+  }
+
+  const modelUsage = isDemo
+    ? { haiku: 29, sonnet: 16 }
+    : data?.model_usage
 
   return (
     <>
       <TopBar title="Analytics" />
 
-      <main className="min-h-screen" style={{ paddingTop: 48, paddingLeft: 220, background: 'var(--bg-base)' }}>
+      {/* Fix 8 — extra 20px padding-top so cards clear the topbar */}
+      <main
+        className="min-h-screen"
+        style={{ paddingTop: 68, paddingLeft: 'var(--sidebar-w)', background: 'var(--bg-base)' }}
+      >
         <div className="p-5 space-y-5">
 
-          {/* KPIs */}
+          {/* Fix 9 — Resolution Rate gets highlight + showArrow */}
           <div className="grid grid-cols-4 gap-4">
             {loading ? (
               [...Array(4)].map((_, i) => <SkeletonBlock key={i} h={100} />)
             ) : (
               <>
-                <KpiCard
-                  icon={Zap} color="var(--accent-primary)"
-                  label="Tickets (7 days)" value={data?.total_7d ?? 0}
-                  sub="Total tickets received"
-                />
-                <KpiCard
-                  icon={CheckCircle2} color="var(--accent-green)"
-                  label="Resolution Rate" value={`${data?.resolution_rate_7d ?? 0}%`}
-                  sub={`${data?.resolved_7d ?? 0} auto-resolved`}
-                />
-                <KpiCard
-                  icon={Brain} color="var(--accent-purple)"
-                  label="Avg Confidence" value={`${data?.avg_confidence ?? 0}%`}
-                  sub="Classifier confidence"
-                />
-                <KpiCard
-                  icon={TrendingUp} color="var(--accent-green)"
+                <KpiCard icon={Zap} color="var(--accent-primary)"
+                  label="Tickets (7 days)" value={kpi.total_7d}
+                  sub="Total tickets received" />
+                <KpiCard icon={CheckCircle2} color="var(--accent-green)"
+                  label="Resolution Rate" value={`${kpi.resolution_rate_7d}%`}
+                  sub={`${kpi.resolved_7d} auto-resolved`}
+                  highlight showArrow />
+                <KpiCard icon={Brain} color="var(--accent-purple)"
+                  label="Avg Confidence" value={`${kpi.avg_confidence}%`}
+                  sub="Classifier confidence" />
+                <KpiCard icon={TrendingUp} color="var(--accent-green)"
                   label="Model Mix"
-                  value={data?.model_usage && Object.keys(data.model_usage).length > 0
-                    ? `${Math.round(((data.model_usage.haiku || 0) / Object.values(data.model_usage).reduce((a, b) => a + b, 0)) * 100)}% Haiku`
+                  value={modelUsage && Object.keys(modelUsage).length > 0
+                    ? `${Math.round(((modelUsage.haiku || 0) / Object.values(modelUsage).reduce((a, b) => a + b, 0)) * 100)}% Haiku`
                     : '—'}
-                  sub="Fast vs quality balance"
-                />
+                  sub="Fast vs quality balance" />
               </>
             )}
           </div>
@@ -133,7 +166,6 @@ export default function Analytics() {
           {/* Volume + Intent */}
           <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 340px' }}>
 
-            {/* Area chart */}
             <div>
               <SectionHeader accent="var(--accent-primary)">Ticket Volume — Last 7 Days</SectionHeader>
               <div className="p-5 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
@@ -161,10 +193,14 @@ export default function Analytics() {
                     </AreaChart>
                   </ResponsiveContainer>
                 )}
+                {isDemo && !loading && (
+                  <p className="text-xs text-center mt-2" style={{ color: 'var(--text-muted)' }}>
+                    Demo data · Showing sample activity
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Intent breakdown */}
             <div>
               <SectionHeader accent="var(--accent-amber)">Intent Breakdown</SectionHeader>
               <div className="p-5 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
@@ -193,20 +229,19 @@ export default function Analytics() {
           {/* Model + Language */}
           <div className="grid grid-cols-2 gap-4">
 
-            {/* Model usage */}
             <div>
               <SectionHeader accent="var(--accent-purple)">Model Usage</SectionHeader>
               <div className="p-5 rounded-xl space-y-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-                {loading ? <SkeletonBlock h={80} /> : !data?.model_usage || Object.keys(data.model_usage).length === 0 ? (
-                  <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>No data yet</p>
-                ) : (() => {
-                  const total = Object.values(data.model_usage).reduce((a, b) => a + b, 0)
+                {loading ? <SkeletonBlock h={80} /> : (() => {
+                  const usage = modelUsage || {}
+                  const total = Object.values(usage).reduce((a, b) => a + b, 0)
+                  if (total === 0) return <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>No data yet</p>
                   const models = [
-                    { key: 'haiku',  label: 'Haiku',  color: 'var(--accent-green)',  desc: 'Fast · how-to & neutral' },
+                    { key: 'haiku',  label: 'Haiku',  color: 'var(--accent-green)',   desc: 'Fast · how-to & neutral' },
                     { key: 'sonnet', label: 'Sonnet', color: 'var(--accent-primary)', desc: 'Quality · complex issues' },
                   ]
                   return models.map(m => {
-                    const count = data.model_usage[m.key] || 0
+                    const count = usage[m.key] || 0
                     const pct = total > 0 ? Math.round(count / total * 100) : 0
                     return (
                       <div key={m.key}>
@@ -228,7 +263,6 @@ export default function Analytics() {
               </div>
             </div>
 
-            {/* Language breakdown */}
             <div>
               <SectionHeader accent="var(--accent-green)">Language Breakdown</SectionHeader>
               <div className="p-5 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
@@ -237,8 +271,7 @@ export default function Analytics() {
                 ) : (
                   <div className="space-y-3">
                     {data.language_breakdown.map((l, i) => {
-                      const total = data.total_7d || 1
-                      const pct = Math.round(l.count / total * 100)
+                      const pct = Math.round(l.count / (data.total_7d || 1) * 100)
                       const colors = ['var(--accent-primary)', 'var(--accent-green)', 'var(--accent-amber)', 'var(--accent-red)', 'var(--accent-purple)']
                       const color = colors[i % colors.length]
                       return (
