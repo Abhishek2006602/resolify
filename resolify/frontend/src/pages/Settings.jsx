@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Shield, Zap, Database, CheckCircle2, AlertTriangle, Link, BarChart2, Lock } from 'lucide-react'
+import { Shield, Zap, Database, CheckCircle2, AlertTriangle, Link } from 'lucide-react'
 import TopBar from '../components/TopBar'
 import { PlanBadge } from '../components/StatusBadge'
-import { getSettings, updateSettings } from '../api'
+import { getSettings, updateSettings, startIntercomOAuth } from '../api'
 
 const cardStyle = {
   background: 'var(--bg-card)',
@@ -81,6 +81,65 @@ const greenBadge = {
   alignItems: 'center',
   gap: 4,
   whiteSpace: 'nowrap',
+}
+
+function IntercomIntegrationRow({ connected, workspaceName, loading }) {
+  const [connecting, setConnecting] = useState(false)
+
+  async function handleConnect() {
+    setConnecting(true)
+    try {
+      const data = await startIntercomOAuth()
+      if (data.oauth_url) window.location.href = data.oauth_url
+    } catch {
+      setConnecting(false)
+    }
+  }
+
+  return (
+    <div
+      className="flex items-center justify-between py-4"
+      style={{ borderBottom: '1px solid var(--border-subtle)' }}
+    >
+      <div className="flex items-center gap-3">
+        <span style={{ fontSize: 20, lineHeight: 1 }}>💬</span>
+        <div>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Intercom</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {connected && workspaceName
+              ? `Connected to ${workspaceName}`
+              : 'Receive tickets from Intercom conversations'}
+          </p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="skeleton w-20 h-7 rounded-lg" />
+      ) : connected ? (
+        <span style={greenBadge}>
+          <CheckCircle2 size={11} /> Connected
+        </span>
+      ) : (
+        <button
+          onClick={handleConnect}
+          disabled={connecting}
+          className="flex items-center gap-1.5 rounded-lg text-xs font-semibold transition-all"
+          style={{
+            background: connecting ? 'var(--border-default)' : 'rgba(88,166,255,0.08)',
+            color: connecting ? 'var(--text-muted)' : 'var(--accent-primary)',
+            border: `1px solid ${connecting ? 'transparent' : 'rgba(88,166,255,0.2)'}`,
+            padding: '6px 14px',
+            cursor: connecting ? 'not-allowed' : 'pointer',
+          }}
+          onMouseEnter={e => { if (!connecting) e.currentTarget.style.background = 'rgba(88,166,255,0.15)' }}
+          onMouseLeave={e => { if (!connecting) e.currentTarget.style.background = 'rgba(88,166,255,0.08)' }}
+        >
+          <Link size={12} />
+          {connecting ? 'Redirecting…' : 'Connect'}
+        </button>
+      )}
+    </div>
+  )
 }
 
 export default function Settings() {
@@ -225,16 +284,24 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* ── Fix 12: Integrations ── */}
+          {/* ── Integrations ── */}
           <div>
             <SectionHeader accent="var(--accent-primary)" sub="Connect your existing tools to Resolify.">
               Integrations
             </SectionHeader>
             <div className="px-5 rounded-xl" style={cardStyle}>
+
+              {/* Intercom — live OAuth state */}
+              <IntercomIntegrationRow
+                connected={settings?.intercom_connected}
+                workspaceName={settings?.workspace_name}
+                loading={loading}
+              />
+
+              {/* Static integrations (coming soon) */}
               {[
-                { name: 'Intercom',  desc: 'Receive tickets from Intercom conversations', emoji: '💬' },
-                { name: 'Stripe',    desc: 'Enrich tickets with billing context',          emoji: '💳' },
-                { name: 'HubSpot',   desc: 'Sync escalated tickets to your CRM',           emoji: '🟠' },
+                { name: 'Stripe',  desc: 'Enrich tickets with billing context', emoji: '💳' },
+                { name: 'HubSpot', desc: 'Sync escalated tickets to your CRM',  emoji: '🟠' },
               ].map((item, i, arr) => (
                 <div
                   key={item.name}

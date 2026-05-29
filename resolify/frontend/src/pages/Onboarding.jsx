@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Zap, CheckCircle2, ArrowRight, SkipForward, Upload, FileText, Globe } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Zap, CheckCircle2, ArrowRight, SkipForward, Upload, FileText, Globe, AlertCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { completeOnboarding } from '../api'
+import { completeOnboarding, startIntercomOAuth } from '../api'
 
 const STEPS = ['Welcome', 'Connect Intercom', 'Upload Docs', 'Ready']
 
@@ -110,36 +110,23 @@ function StepWelcome({ companyName, onNext }) {
   )
 }
 
-// ── Step 2: Connect Intercom ──────────────────────────────────────────────────
-function StepIntercom({ onNext, onSkip }) {
-  const [token,      setToken]      = useState('')
-  const [connecting, setConnecting] = useState(false)
-  const [connected,  setConnected]  = useState(false)
+// ── Step 2: Connect Intercom (OAuth) ─────────────────────────────────────────
+function StepIntercom({ onNext, onSkip, oauthError }) {
+  const [starting, setStarting] = useState(false)
 
-  async function handleConnect() {
-    if (!token.trim()) return
-    setConnecting(true)
+  async function handleOAuth() {
+    setStarting(true)
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001'
-      const authToken = localStorage.getItem('resolify_token')
-      await fetch(`${API_URL}/api/intercom/register-webhook`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        },
-        body: JSON.stringify({
-          access_token: token,
-          webhook_url: 'https://resolify-backend.onrender.com/api/webhook/intercom',
-        }),
-      })
+      const data = await startIntercomOAuth()
+      if (data.oauth_url) {
+        window.location.href = data.oauth_url
+        // page navigates away — no need to reset starting
+      } else {
+        setStarting(false)
+      }
     } catch {
-      // Non-fatal — token saved even if registration fails
-    } finally {
-      setConnecting(false)
+      setStarting(false)
     }
-    setConnected(true)
-    setTimeout(onNext, 900)
   }
 
   return (
@@ -157,64 +144,45 @@ function StepIntercom({ onNext, onSkip }) {
         </div>
       </div>
 
-      <div
-        className="p-4 rounded-xl mb-5 text-xs space-y-1"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
-      >
-        <p className="font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>How to get your token:</p>
-        {[
-          'Go to app.intercom.com',
-          'Settings → Developer Hub → New App',
-          'Copy the Access Token',
-        ].map((step, i) => (
-          <div key={i} className="flex items-start gap-2">
-            <span
-              className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
-              style={{ background: 'rgba(88,166,255,0.15)', color: 'var(--accent-primary)' }}
-            >
-              {i + 1}
-            </span>
-            <span style={{ color: 'var(--text-secondary)' }}>{step}</span>
-          </div>
-        ))}
-      </div>
-
-      {connected ? (
+      {oauthError && (
         <div
-          className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium fade-in"
-          style={{ background: 'rgba(63,185,80,0.1)', border: '1px solid rgba(63,185,80,0.25)', color: 'var(--accent-green)' }}
+          className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm mb-5"
+          style={{ background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.2)', color: 'var(--accent-red)' }}
         >
-          <CheckCircle2 size={16} /> Intercom connected! Moving on…
+          <AlertCircle size={15} />
+          Connection failed. Please try again.
         </div>
-      ) : (
-        <>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-            Access Token
-          </label>
-          <input
-            type="text"
-            value={token}
-            onChange={e => setToken(e.target.value)}
-            placeholder="dG9rOjEyMzQ1..."
-            className="w-full px-3 py-2.5 text-sm rounded-lg outline-none mb-4"
-            style={{
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-              colorScheme: 'dark',
-              transition: 'border-color 0.15s',
-            }}
-            onFocus={e => e.target.style.borderColor = 'var(--accent-primary)'}
-            onBlur={e => e.target.style.borderColor = 'var(--border-default)'}
-          />
-          <div className="flex items-center gap-3">
-            <PrimaryBtn onClick={handleConnect} loading={connecting} disabled={!token.trim()}>
-              {connecting ? 'Connecting…' : 'Connect Intercom'}
-            </PrimaryBtn>
-            <SkipBtn onClick={onSkip} />
-          </div>
-        </>
       )}
+
+      <button
+        onClick={handleOAuth}
+        disabled={starting}
+        className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl text-sm font-semibold transition-all mb-3"
+        style={{
+          background: starting ? 'var(--border-default)' : 'var(--accent-primary)',
+          color: '#fff',
+          boxShadow: starting ? 'none' : '0 4px 20px rgba(88,166,255,0.25)',
+          cursor: starting ? 'not-allowed' : 'pointer',
+          border: 'none',
+        }}
+        onMouseEnter={e => { if (!starting) e.currentTarget.style.background = '#79B8FF' }}
+        onMouseLeave={e => { if (!starting) e.currentTarget.style.background = 'var(--accent-primary)' }}
+      >
+        {/* Intercom chat-bubble icon */}
+        <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="white" fillOpacity="0.2"/>
+          <path d="M16 6C10.477 6 6 10.477 6 16c0 1.89.525 3.66 1.438 5.17L6 26l4.926-1.406A9.943 9.943 0 0016 26c5.523 0 10-4.477 10-10S21.523 6 16 6zm0 18a7.958 7.958 0 01-4.016-1.08l-.288-.17-2.924.836.803-2.847-.186-.295A7.97 7.97 0 018 16c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z" fill="white"/>
+        </svg>
+        {starting ? 'Redirecting to Intercom…' : 'Connect Intercom'}
+      </button>
+
+      <p className="text-xs text-center mb-6" style={{ color: 'var(--text-muted)' }}>
+        You'll be redirected to Intercom to authorize the connection. This takes 30 seconds.
+      </p>
+
+      <div className="flex justify-center">
+        <SkipBtn onClick={onSkip} />
+      </div>
     </div>
   )
 }
@@ -396,9 +364,27 @@ export default function Onboarding() {
   const [connected,    setConnected]    = useState(false)
   const [docsUploaded, setDocsUploaded] = useState(false)
   const [finishing,    setFinishing]    = useState(false)
+  const [oauthError,   setOauthError]   = useState(false)
 
   const { user, login, token } = useAuth()
-  const navigate = useNavigate()
+  const navigate   = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // Handle return from Intercom OAuth callback
+  useEffect(() => {
+    const urlStep      = searchParams.get('step')
+    const intercomStatus = searchParams.get('intercom')
+    const error        = searchParams.get('error')
+
+    if (intercomStatus === 'connected') {
+      setConnected(true)
+      // step=3 in URL = Upload Docs (internal index 2), step=4 = Ready (index 3)
+      setStep(urlStep === '4' ? 3 : 2)
+    } else if (error === 'oauth_failed') {
+      setOauthError(true)
+      setStep(1)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const companyName = user?.company_name || user?.name || ''
 
@@ -441,6 +427,7 @@ export default function Onboarding() {
           <StepIntercom
             onNext={() => { setConnected(true); setStep(2) }}
             onSkip={() => setStep(2)}
+            oauthError={oauthError}
           />
         )}
         {step === 2 && (

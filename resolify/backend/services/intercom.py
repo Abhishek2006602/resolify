@@ -27,6 +27,22 @@ async def _get_admin_id(access_token: str = "") -> str:
     return ""
 
 
+async def get_workspace_info(access_token: str = "") -> dict:
+    """Get admin ID and workspace name from /me endpoint."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(f"{INTERCOM_BASE}/me", headers=_headers(access_token))
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "admin_id": str(data.get("id", "")),
+                    "workspace_name": data.get("app", {}).get("name", "") or "",
+                }
+    except Exception as exc:
+        logger.error(f"Could not fetch Intercom workspace info: {exc}")
+    return {"admin_id": "", "workspace_name": ""}
+
+
 async def reply_to_conversation(conversation_id: str, message: str, access_token: str = "") -> bool:
     """Send AI-generated reply to customer in Intercom."""
     admin_id = await _get_admin_id(access_token)
@@ -87,11 +103,14 @@ async def get_contact_details(contact_id: str, access_token: str = "") -> dict:
 
 async def register_webhook(webhook_url: str, access_token: str) -> bool:
     """Register a webhook URL in Intercom for a client."""
-    body = {
+    from config import INTERCOM_WEBHOOK_SECRET
+    body: dict = {
         "service_type": "web",
         "url": webhook_url,
         "topics": ["conversation.user.created", "conversation.user.replied"],
     }
+    if INTERCOM_WEBHOOK_SECRET:
+        body["hub.secret"] = INTERCOM_WEBHOOK_SECRET
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(

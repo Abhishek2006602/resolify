@@ -13,4 +13,8 @@ SECRET_KEY: str = os.getenv("SECRET_KEY", "change-this-in-production-use-a-long-
 ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 INTERCOM_ACCESS_TOKEN: str = os.getenv("INTERCOM_ACCESS_TOKEN", "")
 INTERCOM_WEBHOOK_SECRET: str = os.getenv("INTERCOM_WEBHOOK_SECRET", "")
+INTERCOM_CLIENT_ID: str = os.getenv("INTERCOM_CLIENT_ID", "")
+INTERCOM_CLIENT_SECRET: str = os.getenv("INTERCOM_CLIENT_SECRET", "")
+INTERCOM_REDIRECT_URI: str = os.getenv("INTERCOM_REDIRECT_URI", "https://resolify-backend.onrender.com/api/intercom/oauth/callback")
+FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://resolify.vercel.app")
 

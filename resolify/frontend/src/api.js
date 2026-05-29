@@ -91,3 +91,9 @@ export function sendTestTicket(payload, signal) {
     signal,
   })
 }
+
+// ── Intercom OAuth ────────────────────────────────────────────────────────────
+
+export function startIntercomOAuth() {
+  return request('/intercom/oauth/start')
+}

@@ -26,7 +26,7 @@ async def get_settings(user: Optional[dict] = Depends(get_optional_user)):
             return {"configured": False}
 
         result = db.table("clients").select(
-            "id, name, plan, draft_mode, created_at"
+            "id, name, plan, draft_mode, created_at, intercom_connected, workspace_name"
         ).eq("id", client_id).execute()
 
         if not result.data:
@@ -37,13 +37,15 @@ async def get_settings(user: Optional[dict] = Depends(get_optional_user)):
         total_tickets = len(ticket_rows.data)
 
         return {
-            "configured": True,
-            "client_id": client["id"],
-            "name": client.get("name") or "Resolify",
-            "plan": client.get("plan") or "starter",
-            "draft_mode": bool(client.get("draft_mode", True)),
-            "created_at": client.get("created_at"),
-            "total_tickets": total_tickets,
+            "configured":          True,
+            "client_id":           client["id"],
+            "name":                client.get("name") or "Resolify",
+            "plan":                client.get("plan") or "starter",
+            "draft_mode":          bool(client.get("draft_mode", True)),
+            "created_at":          client.get("created_at"),
+            "total_tickets":       total_tickets,
+            "intercom_connected":  bool(client.get("intercom_connected", False)),
+            "workspace_name":      client.get("workspace_name") or "",
         }
     except Exception as exc:
         logger.error(f"Settings fetch failed: {exc}")

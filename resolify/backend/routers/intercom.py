@@ -1,9 +1,12 @@
 import json
 import hmac
 import hashlib
+import httpx
 import logging
 import re
-from fastapi import APIRouter, Request, HTTPException, Header, Depends
+from urllib.parse import urlencode
+from fastapi import APIRouter, Request, HTTPException, Header, Depends, Query
+from fastapi.responses import RedirectResponse
 from typing import Optional
 from models.schemas import IntercomWebhookPayload
 from routers.webhooks import process_ticket
@@ -65,6 +68,8 @@ def _parse_intercom_event(data: dict) -> Optional[IntercomWebhookPayload]:
     )
 
 
+# ── Live webhook (real Intercom events) ───────────────────────────────────────
+
 @router.post("/webhook/intercom/live")
 async def intercom_live_webhook(
     request: Request,
@@ -73,7 +78,6 @@ async def intercom_live_webhook(
     """Receives real Intercom webhook events (conversation.user.created / replied)."""
     raw_body = await request.body()
 
-    # Signature verification — only enforced when a secret is configured
     try:
         from database import get_db
         from services.clients import get_default_client_id
@@ -105,7 +109,6 @@ async def intercom_live_webhook(
     if topic not in SUPPORTED_TOPICS:
         return {"status": "ignored", "topic": topic}
 
-    # Extract conversation ID separately so process_ticket can send replies
     item    = data.get("data", {}).get("item", {})
     conv_id = str(item.get("id", "")) or None
 
@@ -116,16 +119,14 @@ async def intercom_live_webhook(
     return await process_ticket(payload, conversation_id=conv_id)
 
 
+# ── Manual webhook registration (legacy / admin use) ─────────────────────────
+
 @router.post("/intercom/register-webhook")
 async def register_intercom_webhook(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """
-    Save a client's Intercom access token and register the Resolify webhook URL
-    in their Intercom workspace.
-    Body: { access_token: str, webhook_url: str }
-    """
+    """Save a client's Intercom access token and register the webhook URL."""
     from database import get_db
     from services.intercom import register_webhook as svc_register
 
@@ -141,14 +142,12 @@ async def register_intercom_webhook(
     client_id = user["sub"]
     db = get_db()
 
-    # Save token (and intercom_connected flag) to clients table
     try:
         db.table("clients").update({
             "intercom_access_token": access_token,
             "intercom_connected": True,
         }).eq("id", client_id).execute()
     except Exception as exc:
-        # intercom_connected column might not exist yet — fall back to token only
         logger.warning(f"Could not set intercom_connected (column may be missing): {exc}")
         try:
             db.table("clients").update({
@@ -158,7 +157,6 @@ async def register_intercom_webhook(
             logger.error(f"Failed to save Intercom token: {exc2}")
             raise HTTPException(status_code=500, detail="Could not save access token")
 
-    # Register webhook in Intercom
     ok = await svc_register(webhook_url, access_token)
 
     return {
@@ -170,3 +168,107 @@ async def register_intercom_webhook(
             else "Token saved — webhook registration failed (check token permissions)"
         ),
     }
+
+
+# ── OAuth flow ────────────────────────────────────────────────────────────────
+
+@router.get("/intercom/oauth/start")
+async def intercom_oauth_start(user: dict = Depends(get_current_user)):
+    """
+    Return the Intercom OAuth authorization URL for the logged-in client.
+    The client_id is encoded in the state parameter so the callback can
+    associate the token with the right client row.
+    """
+    from config import INTERCOM_CLIENT_ID, INTERCOM_REDIRECT_URI
+
+    params = {
+        "client_id":    INTERCOM_CLIENT_ID,
+        "redirect_uri": INTERCOM_REDIRECT_URI,
+        "state":        user["sub"],
+    }
+    oauth_url = f"https://app.intercom.com/oauth?{urlencode(params)}"
+    return {"oauth_url": oauth_url}
+
+
+@router.get("/intercom/oauth/callback")
+async def intercom_oauth_callback(
+    code:  Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+):
+    """
+    Public OAuth callback. Intercom redirects here after the user authorizes.
+    Exchanges the code for an access token, saves it, and registers the webhook.
+    """
+    from config import (
+        INTERCOM_CLIENT_ID,
+        INTERCOM_CLIENT_SECRET,
+        INTERCOM_REDIRECT_URI,
+        FRONTEND_URL,
+    )
+    from services.intercom import get_workspace_info, register_webhook as svc_register
+
+    error_redirect = f"{FRONTEND_URL}/onboarding?step=2&error=oauth_failed"
+    success_redirect = f"{FRONTEND_URL}/onboarding?step=3&intercom=connected"
+
+    if not code or not state:
+        logger.warning("OAuth callback missing code or state")
+        return RedirectResponse(error_redirect)
+
+    client_id = state  # state carries the client's UUID
+
+    # Exchange authorization code for access token
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                "https://api.intercom.io/auth/eagle/token",
+                data={
+                    "code":          code,
+                    "client_id":     INTERCOM_CLIENT_ID,
+                    "client_secret": INTERCOM_CLIENT_SECRET,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            if resp.status_code != 200:
+                logger.error(
+                    f"Intercom token exchange failed | status={resp.status_code} body={resp.text[:300]}"
+                )
+                return RedirectResponse(error_redirect)
+
+            token_data   = resp.json()
+            access_token = token_data.get("access_token", "")
+    except Exception as exc:
+        logger.error(f"Intercom OAuth token exchange error: {exc}")
+        return RedirectResponse(error_redirect)
+
+    if not access_token:
+        logger.error("Intercom OAuth: access_token missing from response")
+        return RedirectResponse(error_redirect)
+
+    # Fetch workspace name and admin ID
+    workspace    = await get_workspace_info(access_token)
+    admin_id     = workspace.get("admin_id", "")
+    workspace_name = workspace.get("workspace_name", "")
+
+    # Persist to database
+    try:
+        from database import get_db
+        db = get_db()
+        update: dict = {
+            "intercom_access_token": access_token,
+            "intercom_connected":    True,
+        }
+        if admin_id:
+            update["intercom_admin_id"] = admin_id
+        if workspace_name:
+            update["workspace_name"] = workspace_name
+        db.table("clients").update(update).eq("id", client_id).execute()
+        logger.info(f"Intercom OAuth success | client={client_id} workspace={workspace_name}")
+    except Exception as exc:
+        logger.error(f"Failed to save OAuth data to DB: {exc}")
+        return RedirectResponse(error_redirect)
+
+    # Register webhook in the client's Intercom workspace
+    webhook_url = f"https://resolify-backend.onrender.com/api/webhook/intercom/live"
+    await svc_register(webhook_url, access_token)
+
+    return RedirectResponse(success_redirect)
