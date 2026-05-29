@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Zap, CheckCircle2, ArrowRight, SkipForward, Upload, FileText, Globe, AlertCircle } from 'lucide-react'
+import { Zap, CheckCircle2, ArrowRight, SkipForward, Upload, FileText, Globe, AlertCircle, ShieldAlert, ExternalLink } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { completeOnboarding, startIntercomOAuth } from '../api'
 
-const STEPS = ['Welcome', 'Connect Intercom', 'Upload Docs', 'Ready']
+const STEPS = ['Welcome', 'Connect Intercom', 'Disable Fin', 'Upload Docs', 'Ready']
+
+// Hardcoded Intercom app ID for the Fin settings deep-link.
+// TODO: make dynamic per-customer once workspace_id is reliably available.
+const FIN_APP_ID = 'lugii3n3'
+const FIN_SETTINGS_URL = `https://app.intercom.com/a/apps/${FIN_APP_ID}/automation/fin-ai-agent/setup`
 
 function StepIndicator({ current }) {
   return (
@@ -187,7 +192,118 @@ function StepIntercom({ onNext, onSkip, oauthError }) {
   )
 }
 
-// ── Step 3: Upload Docs ───────────────────────────────────────────────────────
+// ── Step 3: Disable Fin AI ────────────────────────────────────────────────────
+function StepDisableFin({ onNext, onSkip }) {
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(210,153,34,0.12)', border: '1px solid rgba(210,153,34,0.25)' }}
+        >
+          <ShieldAlert size={20} color="var(--accent-amber)" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Disable Intercom Fin AI</h2>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Avoid duplicate AI responses</p>
+        </div>
+      </div>
+
+      {/* Explanation card with amber left border */}
+      <div
+        className="rounded-xl p-4 mb-5"
+        style={{
+          background: 'rgba(210,153,34,0.06)',
+          border: '1px solid rgba(210,153,34,0.2)',
+          borderLeft: '3px solid var(--accent-amber)',
+        }}
+      >
+        <p className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--accent-amber)' }}>
+          ⚠️ Important
+        </p>
+        <p className="text-xs mb-2" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          Both Resolify and Intercom Fin are AI systems. If both are active at the same time:
+        </p>
+        <ul className="text-xs space-y-1 mb-3" style={{ color: 'var(--text-secondary)' }}>
+          <li>• Your customers receive duplicate replies</li>
+          <li>• Analytics become inaccurate</li>
+          <li>• Support quality drops</li>
+        </ul>
+        <p className="text-xs font-medium" style={{ color: 'var(--text-primary)', lineHeight: 1.6 }}>
+          Disable Fin now so Resolify becomes your single AI authority.
+        </p>
+      </div>
+
+      {/* Step-by-step instructions */}
+      <div
+        className="rounded-xl p-4 mb-5"
+        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
+      >
+        <p className="text-xs font-semibold mb-2.5" style={{ color: 'var(--text-secondary)' }}>How to disable Fin AI:</p>
+        {[
+          'Click the button below to open Fin settings',
+          'Find the Deploy tab',
+          'Turn off the green dots for Chat and Email',
+          'Come back here and click "I\'ve disabled Fin"',
+        ].map((step, i) => (
+          <div key={i} className="flex items-start gap-2 mb-1.5">
+            <span
+              className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+              style={{ background: 'rgba(210,153,34,0.15)', color: 'var(--accent-amber)' }}
+            >
+              {i + 1}
+            </span>
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{step}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Button 1 — open Fin settings in new tab */}
+      <a
+        href={FIN_SETTINGS_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all mb-3"
+        style={{
+          background: 'var(--accent-primary)',
+          color: '#fff',
+          boxShadow: '0 4px 20px rgba(88,166,255,0.25)',
+          textDecoration: 'none',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = '#79B8FF'}
+        onMouseLeave={e => e.currentTarget.style.background = 'var(--accent-primary)'}
+      >
+        Open Fin AI Settings <ExternalLink size={14} />
+      </a>
+
+      {/* Button 2 — ghost/outline continue CTA */}
+      <button
+        onClick={onNext}
+        className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all mb-3"
+        style={{
+          background: 'transparent',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border-default)',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = 'var(--accent-primary)' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+      >
+        I've disabled Fin — Continue <ArrowRight size={14} />
+      </button>
+
+      <p className="text-xs text-center mb-6" style={{ color: 'var(--text-muted)' }}>
+        Already using a different AI tool? Fin may already be disabled.
+      </p>
+
+      <div className="flex justify-center">
+        <SkipBtn onClick={onSkip} />
+      </div>
+    </div>
+  )
+}
+
+// ── Step 4: Upload Docs ───────────────────────────────────────────────────────
 function StepDocs({ onNext, onSkip }) {
   const [text,       setText]       = useState('')
   const [uploading,  setUploading]  = useState(false)
@@ -301,7 +417,7 @@ function StepDocs({ onNext, onSkip }) {
   )
 }
 
-// ── Step 4: Ready ─────────────────────────────────────────────────────────────
+// ── Step 5: Ready ─────────────────────────────────────────────────────────────
 function StepReady({ connected, docsUploaded, onFinish, finishing }) {
   const checks = [
     { label: 'Account created',      done: true },
@@ -372,14 +488,15 @@ export default function Onboarding() {
 
   // Handle return from Intercom OAuth callback
   useEffect(() => {
-    const urlStep      = searchParams.get('step')
     const intercomStatus = searchParams.get('intercom')
-    const error        = searchParams.get('error')
+    const error          = searchParams.get('error')
 
     if (intercomStatus === 'connected') {
       setConnected(true)
-      // step=3 in URL = Upload Docs (internal index 2), step=4 = Ready (index 3)
-      setStep(urlStep === '4' ? 3 : 2)
+      // Backend redirects with ?step=3&intercom=connected after OAuth.
+      // In the 5-step flow, internal index 2 = Disable Fin AI (the next step
+      // after Connect Intercom). Always land the user here post-OAuth.
+      setStep(2)
     } else if (error === 'oauth_failed') {
       setOauthError(true)
       setStep(1)
@@ -431,12 +548,18 @@ export default function Onboarding() {
           />
         )}
         {step === 2 && (
-          <StepDocs
-            onNext={() => { setDocsUploaded(true); setStep(3) }}
+          <StepDisableFin
+            onNext={() => setStep(3)}
             onSkip={() => setStep(3)}
           />
         )}
         {step === 3 && (
+          <StepDocs
+            onNext={() => { setDocsUploaded(true); setStep(4) }}
+            onSkip={() => setStep(4)}
+          />
+        )}
+        {step === 4 && (
           <StepReady
             connected={connected}
             docsUploaded={docsUploaded}
