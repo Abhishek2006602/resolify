@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Zap, Check, ArrowRight, RefreshCw, Clock, AlertTriangle,
@@ -909,6 +909,25 @@ const responsiveCSS = `
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function Landing() {
+  useEffect(() => {
+    window.intercomSettings = {
+      api_base: "https://api-iam.intercom.io",
+      app_id: "lugii3n3",
+    };
+
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.async = true;
+    script.src = 'https://widget.intercom.io/widget/lugii3n3';
+    document.head.appendChild(script);
+
+    return () => {
+      if (window.Intercom) {
+        window.Intercom('shutdown');
+      }
+    };
+  }, []);
+
   return (
     <div style={{ background: C.bg, color: C.text, fontFamily: 'DM Sans, sans-serif', minHeight: '100vh', scrollBehavior: 'smooth' }}>
       <style>{responsiveCSS}</style>
