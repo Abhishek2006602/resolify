@@ -12,6 +12,8 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Onboarding from './pages/Onboarding'
 import Landing from './pages/Landing'
+import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001'
 
@@ -55,6 +57,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/"         element={<Landing />} />
+          <Route path="/privacy"  element={<Privacy />} />
+          <Route path="/terms"    element={<Terms />} />
           <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
           <Route path="*"         element={<AppShell />} />

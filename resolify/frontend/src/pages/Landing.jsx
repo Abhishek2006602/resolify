@@ -862,12 +862,17 @@ function Footer() {
             <div style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
               Product
             </div>
-            {['Product', 'Pricing', 'Privacy', 'Terms'].map(l => (
-              <div key={l} style={{ marginBottom: 10 }}>
-                <a href={`#${l.toLowerCase()}`} style={{ fontSize: 14, color: C.textSec, textDecoration: 'none', transition: 'color 0.15s' }}
+            {[
+              { label: 'Product', href: '/#features' },
+              { label: 'Pricing', href: '/#pricing' },
+              { label: 'Privacy', href: '/privacy' },
+              { label: 'Terms',   href: '/terms' },
+            ].map(({ label, href }) => (
+              <div key={label} style={{ marginBottom: 10 }}>
+                <Link to={href} style={{ fontSize: 14, color: C.textSec, textDecoration: 'none', transition: 'color 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.color = C.text}
                   onMouseLeave={e => e.currentTarget.style.color = C.textSec}
-                >{l}</a>
+                >{label}</Link>
               </div>
             ))}
           </div>
@@ -886,11 +891,14 @@ function Footer() {
         <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <p style={{ fontSize: 12, color: C.textMuted }}>© 2026 Resolify. All rights reserved.</p>
           <div style={{ display: 'flex', gap: 24 }}>
-            {['Privacy', 'Terms'].map(l => (
-              <a key={l} href="#" style={{ fontSize: 12, color: C.textMuted, textDecoration: 'none', transition: 'color 0.15s' }}
+            {[
+              { label: 'Privacy', href: '/privacy' },
+              { label: 'Terms',   href: '/terms' },
+            ].map(({ label, href }) => (
+              <Link key={label} to={href} style={{ fontSize: 12, color: C.textMuted, textDecoration: 'none', transition: 'color 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.color = C.textSec}
                 onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
-              >{l}</a>
+              >{label}</Link>
             ))}
           </div>
         </div>
