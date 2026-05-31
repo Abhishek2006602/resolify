@@ -341,31 +341,6 @@ function Hero() {
   )
 }
 
-// ── 3. Social proof bar ───────────────────────────────────────────────────────
-function SocialProof() {
-  const companies = ['Statuspage', 'Helpwise', 'Chameleon', 'June.so', 'Koala']
-  return (
-    <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '32px 0' }}>
-      <div style={{ ...container }}>
-        <p style={{ fontSize: 12, color: C.textMuted, textAlign: 'center', marginBottom: 24, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-          Trusted by support teams at fast-growing SaaS companies
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 48, flexWrap: 'wrap' }}>
-          {companies.map(name => (
-            <span key={name} style={{
-              fontSize: 16, fontWeight: 700, color: C.textMuted,
-              letterSpacing: '-0.02em', opacity: 0.5,
-              fontFamily: 'DM Sans, sans-serif',
-            }}>
-              {name}
-            </span>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // ── 4. Problem ────────────────────────────────────────────────────────────────
 function Problem() {
   const cards = [
@@ -941,7 +916,6 @@ export default function Landing() {
       <style>{responsiveCSS}</style>
       <NavBar />
       <Hero />
-      <SocialProof />
       <Problem />
       <HowItWorks />
       <Features />
